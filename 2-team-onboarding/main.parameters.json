@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "onboardingMode": {
+      "value": "subscription"
+    },
+    "teamName": {
+      "value": "test-team"
+    },
+    "parentManagementGroupId": {
+      "value": ""
+    },
+    "billingScope": {
+      "value": ""
+    },
+    "location": {
+      "value": "eastus"
+    },
+    "environments": {
+      "value": ["dev", "uat", "prod"]
+    },
+    "ipamPoolId": {
+      "value": ""
+    },
+    "vnetSizeInBits": {
+      "value": 24
+    },
+    "maxRetries": {
+      "value": 3
+    },
+    "retryDelaySeconds": {
+      "value": 30
+    },
+    "enableLogging": {
+      "value": true
+    },
+    "includeTagName": {
+      "value": "avnm-group"
+    },
+    "includeTagValue": {
+      "value": "spokes"
+    }
+  }
+}

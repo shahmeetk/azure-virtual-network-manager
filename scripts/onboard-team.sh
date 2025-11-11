@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# Orchestrator: Team Onboarding (Dual mode)
+# - managementGroup: Create Team MG + subscriptions, then Spoke VNets from IPAM
+# - subscription   : Create RGs + Spoke VNets in current subscription from IPAM
+# - Reads parameters from 2-team-onboarding/*.parameters.json (or a custom file)
+# - Mirrors style and UX of deploy-hub-and-sub-policy.sh
+
+set -euo pipefail
+
+SUB=""                  # Azure subscription for az context (not the new subs)
+LOCATION=""             # Deployment location for tenant deployment record
+PARAMS_FILE=""          # Path to team onboarding parameters JSON
+DEPLOYMENT_NAME="team-onboard-$(date +%Y%m%d-%H%M%S)"
+WHAT_IF=false
+MODE=""
+
+usage() {
+  cat << EOF
+Usage: $0 --subscription <SUB_ID> --location <LOCATION> --params <TEAM_PARAMS_JSON> [--mode <managementGroup|subscription>] [--what-if] [--name <DEPLOYMENT_NAME>]
+
+Description:
+  Orchestrates team onboarding using the "onboardingMode" parameter from the JSON file or --mode override.
+  Modes:
+    - managementGroup: Tenant-scope deployment to create MG + subscriptions, then VNets per subscription.
+    - subscription   : Subscription-scope deployment to create RGs + VNets within the current subscription.
+
+Required:
+  --subscription        Subscription to set az context (must have Tenant-level permissions for deployment)
+  --location            Azure region to store the deployment record (e.g., eastus)
+  --params              Path to JSON parameters file (e.g., azure-enterprise-bicep/2-team-onboarding/main.parameters.json)
+
+Optional:
+  --what-if             Run what-if instead of an actual deployment
+  --mode                Override onboarding mode (managementGroup or subscription)
+  --name                Custom deployment name (default: team-onboard-YYYYMMDD-HHMMSS)
+
+Examples:
+  $0 --subscription 00000000-0000-0000-0000-000000000000 \\
+     --location eastus \\
+     --params azure-enterprise-bicep/2-team-onboarding/main.parameters.json
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --subscription) SUB="$2"; shift 2;;
+    --location) LOCATION="$2"; shift 2;;
+    --params) PARAMS_FILE="$2"; shift 2;;
+    --what-if) WHAT_IF=true; shift 1;;
+    --mode) MODE="$2"; shift 2;;
+    --name) DEPLOYMENT_NAME="$2"; shift 2;;
+    -h|--help) usage; exit 0;;
+    *) echo "Unknown option: $1" >&2; usage; exit 1;;
+  esac
+done
+
+if [[ -z "$SUB" || -z "$LOCATION" || -z "$PARAMS_FILE" ]]; then
+  echo "Missing required arguments." >&2; usage; exit 1
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "jq is required. Please install jq to use this script." >&2
+  exit 1
+fi
+
+# Determine onboarding mode from params if not provided
+FILE_MODE=$(jq -r '.parameters.onboardingMode.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
+if [[ -z "$MODE" && -n "$FILE_MODE" ]]; then MODE="$FILE_MODE"; fi
+if [[ -z "$MODE" ]]; then MODE="subscription"; fi
+
+# Validate key required parameters exist in the file (best-effort preflight, mode-aware)
+REQUIRED_KEYS=(teamName location ipamPoolId)
+if [[ "$MODE" == "managementGroup" ]]; then
+  REQUIRED_KEYS+=(parentManagementGroupId billingScope)
+fi
+for key in "${REQUIRED_KEYS[@]}"; do
+  val=$(jq -r --arg k "$key" '.parameters[$k].value // empty' "$PARAMS_FILE" 2>/dev/null || true)
+  if [[ -z "$val" ]]; then
+    echo "Parameter '$key' is missing or empty in $PARAMS_FILE" >&2
+  fi
+done
+
+az account set --subscription "$SUB"
+
+if [[ "$MODE" == "managementGroup" ]]; then
+  echo "[Team Onboarding] Mode: managementGroup. Starting tenant-scope deployment (${DEPLOYMENT_NAME})..."
+
+  if [[ "$WHAT_IF" == true ]]; then
+    az deployment tenant what-if \
+      --name "$DEPLOYMENT_NAME" \
+      --location "$LOCATION" \
+      --template-file azure-enterprise-bicep/2-team-onboarding/main.bicep \
+      --parameters @"$PARAMS_FILE" \
+      --verbose
+    echo "What-if completed. No changes were applied."
+    exit 0
+  fi
+
+  az deployment tenant create \
+    --name "$DEPLOYMENT_NAME" \
+    --location "$LOCATION" \
+    --template-file azure-enterprise-bicep/2-team-onboarding/main.bicep \
+    --parameters @"$PARAMS_FILE" \
+    --verbose
+
+  echo "[Team Onboarding] Deployment complete. Fetching outputs..."
+  TEAM_MG_ID=$(az deployment tenant show -n "$DEPLOYMENT_NAME" --query 'properties.outputs.teamManagementGroupId.value' -o tsv || true)
+  SUBSCRIPTIONS=$(az deployment tenant show -n "$DEPLOYMENT_NAME" --query 'properties.outputs.subscriptions.value' -o json || echo '[]')
+  echo "Team Management Group ID: ${TEAM_MG_ID}"
+  echo "Subscriptions created:"
+  echo "$SUBSCRIPTIONS" | jq -r '.[] | "- env: \(.environment), name: \(.name), id: \(.subscriptionId)"'
+  echo "Done."
+else
+  echo "[Team Onboarding] Mode: subscription. Starting subscription-scope deployment (${DEPLOYMENT_NAME})..."
+  if [[ "$WHAT_IF" == true ]]; then
+    az deployment sub what-if \
+      --name "$DEPLOYMENT_NAME" \
+      --location "$LOCATION" \
+      --template-file azure-enterprise-bicep/2-team-onboarding/subscription-main.bicep \
+      --parameters @"$PARAMS_FILE" \
+      --verbose
+    echo "What-if completed. No changes were applied."
+    exit 0
+  fi
+
+  az deployment sub create \
+    --name "$DEPLOYMENT_NAME" \
+    --location "$LOCATION" \
+    --template-file azure-enterprise-bicep/2-team-onboarding/subscription-main.bicep \
+    --parameters @"$PARAMS_FILE" \
+    --verbose
+  echo "[Team Onboarding] Subscription mode deployment complete. Resources were created in current subscription."
+  echo "Done."
+fi

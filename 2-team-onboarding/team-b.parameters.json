@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "onboardingMode": {
+      "value": "managementGroup"
+    },
+    "teamName": {
+      "value": "TeamB"
+    },
+    "parentManagementGroupId": {
+      "value": "YOUR-TOP-LEVEL-LANDING-ZONE-MG-ID"
+    },
+    "billingScope": {
+      "value": "/providers/Microsoft.Billing/billingAccounts/YOUR_BILLING_ACCOUNT_ID/billingProfiles/YOUR_BILLING_PROFILE_ID/invoiceSections/YOUR_INVOICE_SECTION_ID"
+    },
+    "location": {
+      "value": "eastus"
+    },
+    "environments": {
+      "value": [
+        "dev",
+        "uat",
+        "prod"
+      ]
+    },
+    "ipamPoolId": {
+      "value": "PASTE-THE-ipamPoolId-OUTPUT-FROM-PHASE-1-HERE"
+    },
+    "vnetSizeInBits": {
+      "value": 24
+    },
+    "maxRetries": {
+      "value": 3
+    },
+    "retryDelaySeconds": {
+      "value": 60
+    },
+    "enableLogging": {
+      "value": true
+    },
+    "includeTagName": {
+      "value": "avnm-group"
+    },
+    "includeTagValue": {
+      "value": "spokes"
+    }
+  }
+}

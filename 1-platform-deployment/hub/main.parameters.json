@@ -1,0 +1,50 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "prefix": {
+      "value": "test"
+    },
+    "location": {
+      "value": "eastus"
+    },
+    "hubVnetId": {
+      "value": "/subscriptions/b572f84c-ea09-465a-a35b-b4b1ee9a7152/resourceGroups/aznm-test/providers/Microsoft.Network/virtualNetworks/aznm-test-vnet"
+    },
+    "subscriptionIds": {
+      "value": [
+        "b572f84c-ea09-465a-a35b-b4b1ee9a7152"
+      ]
+    },
+    "ipamPoolPrefix": {
+      "value": "10.0.0.0/17"
+    },
+    "deployConnectivity": {
+      "value": true
+    },
+    "firewallPrivateIpAddress": {
+      "value": ""
+    },
+    "internalSupernet": {
+      "value": "10.0.0.0/17"
+    },
+    "enableSubscriptionPolicy": {
+      "value": true
+    },
+    "includeTagName": {
+      "value": "avnm-group"
+    },
+    "includeTagValue": {
+      "value": "spokes"
+    },
+    "policyScopeType": {
+      "value": "Subscription"
+    },
+    "policySubscriptionId": {
+      "value": "b572f84c-ea09-465a-a35b-b4b1ee9a7152"
+    },
+    "policyManagementGroupId": {
+      "value": ""
+    }
+  }
+}
