@@ -72,7 +72,7 @@ echo "[1/3] Deploying hub (RG scope) ..."
 az deployment group create \
   --resource-group "$RG" \
   --name "$DEP" \
-  --template-file azure-enterprise-bicep/1-platform-deployment/hub/main.bicep \
+  --template-file 1-platform-deployment/hub/main.bicep \
   --parameters @"$PARAMS_FILE" \
   --verbose
 
@@ -90,20 +90,32 @@ if [[ "$SCOPE_TYPE" == "ManagementGroup" ]]; then
     echo "--scope-type ManagementGroup requires --management-group-id <MG_ID>" >&2
     exit 1
   fi
+  # Guard: avoid duplicate policy assignment with the same name at MG scope
+  EXISTING_ASSIGNMENT=$(az policy assignment list --scope "/providers/Microsoft.Management/managementGroups/$MG_ID" --query "[?name=='avnm-add-tagged-vnets-to-spokes'].name" -o tsv || true)
+  if [[ -n "$EXISTING_ASSIGNMENT" ]]; then
+    echo "Policy assignment 'avnm-add-tagged-vnets-to-spokes' already exists at MG scope. Skipping duplicate deployment."
+  else
   az deployment mg create \
     --name avnm-mg-policy-$(date +%Y%m%d-%H%M%S) \
     --location "$LOCATION" \
     --management-group-id "$MG_ID" \
-    --template-file azure-enterprise-bicep/1-platform-deployment/hub/modules/mg-avnm-policy.bicep \
+    --template-file 1-platform-deployment/hub/modules/mg-avnm-policy.bicep \
     --parameters parentManagementGroupId="$MG_ID" spokesNetworkGroupId="$SPOKES_NG_ID" includeTagName="$INCLUDE_TAG_NAME" includeTagValue="$INCLUDE_TAG_VALUE" \
     --verbose
+  fi
 else
+  # Guard: avoid duplicate policy assignment with the same name at Subscription scope
+  EXISTING_ASSIGNMENT=$(az policy assignment list --scope "/subscriptions/$SUB" --query "[?name=='avnm-add-tagged-vnets-to-spokes'].name" -o tsv || true)
+  if [[ -n "$EXISTING_ASSIGNMENT" ]]; then
+    echo "Policy assignment 'avnm-add-tagged-vnets-to-spokes' already exists at subscription scope. Skipping duplicate deployment."
+  else
   az deployment sub create \
     --name avnm-sub-policy-$(date +%Y%m%d-%H%M%S) \
     --location "$LOCATION" \
-    --template-file azure-enterprise-bicep/1-platform-deployment/hub/modules/avnm-policy.bicep \
+    --template-file 1-platform-deployment/hub/modules/avnm-policy.bicep \
     --parameters spokesNetworkGroupId="$SPOKES_NG_ID" includeTagName="$INCLUDE_TAG_NAME" includeTagValue="$INCLUDE_TAG_VALUE" \
     --verbose
+  fi
 fi
 
 echo "Done."

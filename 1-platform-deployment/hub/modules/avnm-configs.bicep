@@ -21,6 +21,15 @@ param spokesNetworkGroupId string
 @description('Whether to deploy the Connectivity Configuration. Set true only after backend acceptance is verified.')
 param deployConnectivity bool = false
 
+@description('If true, spokes use the hub gateway for transit (recommended for hub-and-spoke).')
+param useHubGateway bool = true
+
+@description('If true, configuration is global across regions. Keep false for single-region deployments.')
+param isGlobalConnectivity bool = false
+
+@description('If true, delete any existing manual peerings when applying connectivity.')
+param deleteExistingPeering bool = true
+
 @description('The private IP address of the existing Hub Firewall. Optional; when empty, routing resources are skipped.')
 param firewallPrivateIpAddress string = ''
 
@@ -55,12 +64,12 @@ resource connConfig 'Microsoft.Network/networkManagers/connectivityConfiguration
       {
         networkGroupId: spokesNetworkGroupId
         groupConnectivity: 'None'
-        useHubGateway: 'False'
-        isGlobal: 'False'
+        useHubGateway: useHubGateway ? 'True' : 'False'
+        isGlobal: isGlobalConnectivity ? 'True' : 'False'
       }
     ]
-    deleteExistingPeering: 'True'
-    isGlobal: 'False'
+    deleteExistingPeering: deleteExistingPeering ? 'True' : 'False'
+    isGlobal: isGlobalConnectivity ? 'True' : 'False'
     connectivityCapabilities: {
       connectedGroupPrivateEndpointsScale: 'Standard'
       connectedGroupAddressOverlap: 'Allowed'
@@ -82,6 +91,16 @@ resource routeConfig 'Microsoft.Network/networkManagers/routingConfigurations@20
     ]
   }
 }
+
+// === OUTPUTS ===
+@description('Connectivity configuration ID for commit operations.')
+output connectivityConfigurationId string = deployConnectivity ? connConfig.id : ''
+
+@description('Routing configuration ID for commit operations (if enabled).')
+output routingConfigurationId string = enableRouting ? routeConfig.id : ''
+
+@description('Security admin configuration ID for commit operations.')
+output securityAdminConfigurationId string = secConfig.id
 
 @description('2a. Define the Rule Collection for the Routing Configuration.')
 resource routeRuleCollection 'Microsoft.Network/networkManagers/routingConfigurations/ruleCollections@2024-10-01' = if (enableRouting) {

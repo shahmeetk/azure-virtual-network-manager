@@ -27,7 +27,7 @@ Description:
 Required:
   --subscription        Subscription to set az context (must have Tenant-level permissions for deployment)
   --location            Azure region to store the deployment record (e.g., eastus)
-  --params              Path to JSON parameters file (e.g., azure-enterprise-bicep/2-team-onboarding/main.parameters.json)
+  --params              Path to JSON parameters file (e.g., 2-team-onboarding/main.parameters.json)
 
 Optional:
   --what-if             Run what-if instead of an actual deployment
@@ -37,7 +37,7 @@ Optional:
 Examples:
   $0 --subscription 00000000-0000-0000-0000-000000000000 \\
      --location eastus \\
-     --params azure-enterprise-bicep/2-team-onboarding/main.parameters.json
+     --params 2-team-onboarding/main.parameters.json
 EOF
 }
 
@@ -62,6 +62,9 @@ if ! command -v jq >/dev/null 2>&1; then
   echo "jq is required. Please install jq to use this script." >&2
   exit 1
 fi
+
+# Resolve template paths relative to the parameters file directory
+PARAM_DIR=$(cd "$(dirname "$PARAMS_FILE")" && pwd)
 
 # Determine onboarding mode from params if not provided
 FILE_MODE=$(jq -r '.parameters.onboardingMode.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
@@ -89,7 +92,7 @@ if [[ "$MODE" == "managementGroup" ]]; then
     az deployment tenant what-if \
       --name "$DEPLOYMENT_NAME" \
       --location "$LOCATION" \
-      --template-file azure-enterprise-bicep/2-team-onboarding/main.bicep \
+      --template-file "$PARAM_DIR/main.bicep" \
       --parameters @"$PARAMS_FILE" \
       --verbose
     echo "What-if completed. No changes were applied."
@@ -99,7 +102,7 @@ if [[ "$MODE" == "managementGroup" ]]; then
   az deployment tenant create \
     --name "$DEPLOYMENT_NAME" \
     --location "$LOCATION" \
-    --template-file azure-enterprise-bicep/2-team-onboarding/main.bicep \
+    --template-file "$PARAM_DIR/main.bicep" \
     --parameters @"$PARAMS_FILE" \
     --verbose
 
@@ -116,7 +119,7 @@ else
     az deployment sub what-if \
       --name "$DEPLOYMENT_NAME" \
       --location "$LOCATION" \
-      --template-file azure-enterprise-bicep/2-team-onboarding/subscription-main.bicep \
+      --template-file "$PARAM_DIR/subscription-main.bicep" \
       --parameters @"$PARAMS_FILE" \
       --verbose
     echo "What-if completed. No changes were applied."
@@ -126,7 +129,7 @@ else
   az deployment sub create \
     --name "$DEPLOYMENT_NAME" \
     --location "$LOCATION" \
-    --template-file azure-enterprise-bicep/2-team-onboarding/subscription-main.bicep \
+    --template-file "$PARAM_DIR/subscription-main.bicep" \
     --parameters @"$PARAMS_FILE" \
     --verbose
   echo "[Team Onboarding] Subscription mode deployment complete. Resources were created in current subscription."

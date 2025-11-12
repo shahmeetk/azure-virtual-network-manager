@@ -128,21 +128,20 @@ Usage:
 ./onboard-team.sh \
   --subscription <CONTEXT_SUB_ID> \
   --location <LOCATION> \
-  --params azure-enterprise-bicep/2-team-onboarding/main.parameters.json \
+  --params 2-team-onboarding/main.parameters.json \
   [--mode managementGroup|subscription] \
   [--what-if] \
   [--name <DEPLOYMENT_NAME>]
 ```
 
 Notes:
-Notes:
 - The script auto-detects `onboardingMode` from the parameters file. You can override with `--mode`.
-- In `managementGroup` mode, the deployment runs at tenant scope using `2-team-onboarding/main.bicep` and requires `parentManagementGroupId` and `billingScope`.
-- In `subscription` mode, the deployment runs at subscription scope using `2-team-onboarding/subscription-main.bicep`; only subscription-level rights are required.
-- Ensure the Hub deployment has completed and you have the `ipamPoolId` from its outputs.
+- Template paths are resolved relative to the directory of the provided `--params` file. For example, if `--params` points to `2-team-onboarding/main.parameters.json`, the script will use `2-team-onboarding/main.bicep` (managementGroup) or `2-team-onboarding/subscription-main.bicep` (subscription).
+- In `managementGroup` mode, the deployment runs at tenant scope and requires `parentManagementGroupId` and `billingScope`.
+- In `subscription` mode, the deployment runs at subscription scope; only subscription-level rights are required.
+- Ensure the Hub deployment has completed and you have the `ipamPoolId` from its outputs (see `1-platform-deployment/hub/main.bicep` outputs).
 - Parameters are read from the JSON file. Required (managementGroup mode): `teamName`, `parentManagementGroupId`, `billingScope`, `location`, `ipamPoolId`. Required (subscription mode): `teamName`, `location`, `ipamPoolId`. Optional: `environments`, `vnetSizeInBits`, `maxRetries`, `retryDelaySeconds`, `enableLogging`, `includeTagName`, `includeTagValue`.
 
-Outputs:
 Outputs:
 - In managementGroup mode: prints the new Team Management Group ID and a list of created subscriptions by environment.
 - In subscription mode: prints completion and resources created in the current subscription.

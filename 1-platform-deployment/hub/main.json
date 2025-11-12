@@ -1,0 +1,1457 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.38.33.27573",
+      "templateHash": "14522014548855064401"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "The Azure region where the AVNM and hub resources will be deployed."
+      }
+    },
+    "prefix": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 10,
+      "metadata": {
+        "description": "A short, unique prefix for naming all central platform resources."
+      }
+    },
+    "hubVnetId": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The full Resource ID of the existing Hub VNet."
+      }
+    },
+    "subscriptionIds": {
+      "type": "array",
+      "metadata": {
+        "description": "List of subscription IDs or subscription resource IDs that define the AVNM management scope."
+      }
+    },
+    "ipamPoolPrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "The static CIDR block for the entire IPAM pool (e.g., \"10.0.0.0/10\")."
+      }
+    },
+    "deployConnectivity": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Toggle: whether to deploy the AVNM connectivity configuration now. Set to false while we stabilize, then true later."
+      }
+    },
+    "firewallPrivateIpAddress": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional: Hub firewall private IP. When set with internalSupernet, routing is enabled to force spoke traffic via firewall."
+      }
+    },
+    "internalSupernet": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional: Internal supernet (e.g., IPAM pool CIDR). When provided with firewallPrivateIpAddress, forces spoke-to-spoke via firewall."
+      }
+    },
+    "enableSubscriptionPolicy": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable subscription-level AVNM policy to auto-onboard VNets by tag (recommended)."
+      }
+    },
+    "includeTagName": {
+      "type": "string",
+      "defaultValue": "avnm-group",
+      "metadata": {
+        "description": "Tag name used by policy to auto-onboard spokes (default avnm-group)."
+      }
+    },
+    "includeTagValue": {
+      "type": "string",
+      "defaultValue": "spokes",
+      "metadata": {
+        "description": "Tag value used by policy to auto-onboard spokes (default spokes)."
+      }
+    },
+    "useHubGateway": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Connectivity: allow spokes to use hub gateway (transit to on-prem)."
+      }
+    },
+    "isGlobalConnectivity": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Connectivity: treat configuration as global across regions."
+      }
+    },
+    "deleteExistingPeering": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Connectivity: delete pre-existing manual peerings when applying."
+      }
+    },
+    "deployVirtualNetworkGateway": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Toggle: whether to deploy the Virtual Network Gateway in the hub. Default true for hub-and-spoke transit."
+      }
+    },
+    "policyScopeType": {
+      "type": "string",
+      "defaultValue": "Subscription",
+      "metadata": {
+        "description": "Policy scope type. Use \"Subscription\" (default) or \"ManagementGroup\". This template does not use it directly but accepts it so the parameter file can drive scripts."
+      }
+    },
+    "policySubscriptionId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Subscription ID to use when policyScopeType = \"Subscription\". Accepted for parameter file completeness; not used directly by this template."
+      }
+    },
+    "policyManagementGroupId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Management Group ID to use when policyScopeType = \"ManagementGroup\". Accepted for parameter file completeness; not used directly by this template."
+      }
+    }
+  },
+  "resources": [
+    {
+      "condition": "[parameters('deployVirtualNetworkGateway')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-vnet-gateway",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "prefix": {
+            "value": "[parameters('prefix')]"
+          },
+          "hubVnetId": {
+            "value": "[parameters('hubVnetId')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "12779651475831730705"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "The Azure region where the gateway will be deployed."
+              }
+            },
+            "prefix": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 10,
+              "metadata": {
+                "description": "A short, unique prefix for naming all gateway resources."
+              }
+            },
+            "hubVnetId": {
+              "type": "securestring",
+              "metadata": {
+                "description": "The full Resource ID of the existing Hub VNet where gateway will be deployed."
+              }
+            },
+            "gatewaySubnetAddressPrefix": {
+              "type": "string",
+              "defaultValue": "10.0.255.0/27",
+              "minLength": 9,
+              "maxLength": 18,
+              "metadata": {
+                "description": "The address prefix for the Gateway subnet (default: 10.0.255.0/27)."
+              }
+            },
+            "gatewaySku": {
+              "type": "string",
+              "defaultValue": "VpnGw1",
+              "allowedValues": [
+                "Basic",
+                "VpnGw1",
+                "VpnGw2",
+                "VpnGw3",
+                "VpnGw4",
+                "VpnGw5",
+                "ErGw1AZ",
+                "ErGw2AZ",
+                "ErGw3AZ"
+              ],
+              "metadata": {
+                "description": "The SKU tier for the Virtual Network Gateway (default: VpnGw1)."
+              }
+            },
+            "gatewayType": {
+              "type": "string",
+              "defaultValue": "Vpn",
+              "allowedValues": [
+                "Vpn",
+                "ExpressRoute"
+              ],
+              "metadata": {
+                "description": "The type of Virtual Network Gateway (default: Vpn)."
+              }
+            },
+            "vpnType": {
+              "type": "string",
+              "defaultValue": "RouteBased",
+              "allowedValues": [
+                "RouteBased",
+                "PolicyBased"
+              ],
+              "metadata": {
+                "description": "The VPN type for VPN gateways (default: RouteBased)."
+              }
+            },
+            "publicIpSku": {
+              "type": "string",
+              "defaultValue": "Standard",
+              "allowedValues": [
+                "Basic",
+                "Standard"
+              ],
+              "metadata": {
+                "description": "The SKU for the Public IP address (default: Standard)."
+              }
+            },
+            "enableActiveActive": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Enable active-active mode for high availability (default: false)."
+              }
+            },
+            "enableBgp": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Enable BGP routing (default: false)."
+              }
+            },
+            "bgpAsn": {
+              "type": "int",
+              "defaultValue": 65515,
+              "minValue": 1,
+              "maxValue": 4294967295,
+              "metadata": {
+                "description": "ASN for BGP routing (default: 65515)."
+              }
+            }
+          },
+          "variables": {
+            "gatewayName": "[format('{0}-hub-vnet-gateway', parameters('prefix'))]",
+            "publicIpName": "[format('{0}-hub-gateway-pip', parameters('prefix'))]",
+            "gatewaySubnetName": "GatewaySubnet",
+            "vnetName": "[last(split(parameters('hubVnetId'), '/'))]",
+            "vnetResourceGroup": "[split(parameters('hubVnetId'), '/')[4]]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2024-05-01",
+              "name": "[variables('publicIpName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "[parameters('publicIpSku')]",
+                "tier": "Regional"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Static",
+                "publicIPAddressVersion": "IPv4",
+                "idleTimeoutInMinutes": 4,
+                "dnsSettings": {
+                  "domainNameLabel": "[toLower(format('{0}-hub-gateway', parameters('prefix')))]"
+                }
+              },
+              "zones": "[if(equals(parameters('gatewaySku'), 'Basic'), null(), createArray('1', '2', '3'))]",
+              "metadata": {
+                "description": "Public IP address for the Virtual Network Gateway."
+              }
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworkGateways",
+              "apiVersion": "2024-05-01",
+              "name": "[variables('gatewayName')]",
+              "location": "[parameters('location')]",
+              "zones": "[if(equals(parameters('gatewaySku'), 'Basic'), null(), createArray('1', '2', '3'))]",
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "default",
+                    "properties": {
+                      "privateIPAllocationMethod": "Dynamic",
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+                      },
+                      "subnet": {
+                        "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('vnetResourceGroup')), 'Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('gatewaySubnetName'))]"
+                      }
+                    }
+                  }
+                ],
+                "gatewayType": "[parameters('gatewayType')]",
+                "vpnType": "[if(equals(parameters('gatewayType'), 'Vpn'), parameters('vpnType'), null())]",
+                "sku": {
+                  "name": "[parameters('gatewaySku')]",
+                  "tier": "[parameters('gatewaySku')]"
+                },
+                "enableBgp": "[parameters('enableBgp')]",
+                "bgpSettings": "[if(parameters('enableBgp'), createObject('asn', parameters('bgpAsn'), 'bgpPeeringAddresses', createArray()), null())]",
+                "activeActive": "[parameters('enableActiveActive')]",
+                "vpnClientConfiguration": null,
+                "vpnGatewayGeneration": "[if(equals(parameters('gatewaySku'), 'Basic'), null(), 'Generation2')]",
+                "enableDnsForwarding": false,
+                "enablePrivateIpAddress": false,
+                "customRoutes": {
+                  "addressPrefixes": []
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+              ],
+              "metadata": {
+                "description": "Virtual Network Gateway resource."
+              }
+            }
+          ],
+          "outputs": {
+            "gatewayId": {
+              "type": "string",
+              "metadata": {
+                "description": "The Resource ID of the deployed Virtual Network Gateway."
+              },
+              "value": "[resourceId('Microsoft.Network/virtualNetworkGateways', variables('gatewayName'))]"
+            },
+            "gatewayName": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the deployed Virtual Network Gateway."
+              },
+              "value": "[variables('gatewayName')]"
+            },
+            "publicIpId": {
+              "type": "string",
+              "metadata": {
+                "description": "The Resource ID of the Public IP address."
+              },
+              "value": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+            },
+            "gatewaySubnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "The Resource ID of the Gateway subnet."
+              },
+              "value": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('vnetResourceGroup')), 'Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('gatewaySubnetName'))]"
+            },
+            "publicIpAddress": {
+              "type": "string",
+              "metadata": {
+                "description": "The IP address of the Public IP."
+              },
+              "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName')), '2024-05-01').ipAddress]"
+            },
+            "bgpAsn": {
+              "type": "int",
+              "metadata": {
+                "description": "The BGP ASN if BGP is enabled."
+              },
+              "value": "[if(parameters('enableBgp'), parameters('bgpAsn'), 0)]"
+            }
+          }
+        }
+      },
+      "metadata": {
+        "description": "Module 0: Deploys Virtual Network Gateway (conditional)."
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-avnm-core",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "prefix": {
+            "value": "[parameters('prefix')]"
+          },
+          "subscriptionIds": {
+            "value": "[parameters('subscriptionIds')]"
+          },
+          "ipamPoolPrefix": {
+            "value": "[parameters('ipamPoolPrefix')]"
+          },
+          "hubVnetId": {
+            "value": "[parameters('hubVnetId')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "5959922644740025194"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "The Azure region for all resources."
+              }
+            },
+            "prefix": {
+              "type": "string",
+              "metadata": {
+                "description": "A short, unique prefix for naming all resources."
+              }
+            },
+            "hubVnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "The full Resource ID of the existing Hub VNet."
+              }
+            },
+            "subscriptionIds": {
+              "type": "array",
+              "metadata": {
+                "description": "List of subscription IDs or subscription resource IDs to scope AVNM to (e.g., \"<subId>\" or \"/subscriptions/<subId>\")."
+              }
+            },
+            "ipamPoolPrefix": {
+              "type": "string",
+              "metadata": {
+                "description": "The static CIDR block for the entire IPAM pool."
+              }
+            },
+            "ipamPoolName": {
+              "type": "string",
+              "defaultValue": "[format('{0}-ipam-pool', parameters('prefix'))]",
+              "metadata": {
+                "description": "Name of the IPAM pool to create or reference. Use a stable name to ensure a single pool (e.g., \"<prefix>-ipam-pool\")."
+              }
+            },
+            "manageIpamPool": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "If true, this deployment will manage (create/update) the IPAM pool. If false, the template will not attempt to modify it (useful when a pool already exists with a different prefix)."
+              }
+            }
+          },
+          "variables": {
+            "copy": [
+              {
+                "name": "subscriptionResourceIds",
+                "count": "[length(parameters('subscriptionIds'))]",
+                "input": "[if(startsWith(parameters('subscriptionIds')[copyIndex('subscriptionResourceIds')], '/subscriptions/'), parameters('subscriptionIds')[copyIndex('subscriptionResourceIds')], format('/subscriptions/{0}', parameters('subscriptionIds')[copyIndex('subscriptionResourceIds')]))]"
+              }
+            ],
+            "avnmName": "[format('{0}-avnm', parameters('prefix'))]",
+            "hubNetworkGroupName": "[format('{0}-ng-hub-static', parameters('prefix'))]",
+            "spokesNetworkGroupName": "[format('{0}-ng-spokes-dynamic', parameters('prefix'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/networkManagers",
+              "apiVersion": "2024-10-01",
+              "name": "[variables('avnmName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "description": "Central AVNM for enterprise connectivity and security.",
+                "networkManagerScopeAccesses": [
+                  "Connectivity",
+                  "SecurityAdmin"
+                ],
+                "networkManagerScopes": {
+                  "subscriptions": "[variables('subscriptionResourceIds')]"
+                }
+              },
+              "metadata": {
+                "description": "1. Deploy the Azure Virtual Network Manager instance."
+              }
+            },
+            {
+              "condition": "[parameters('manageIpamPool')]",
+              "type": "Microsoft.Network/networkManagers/ipamPools",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', variables('avnmName'), parameters('ipamPoolName'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "description": "Global IPAM pool for all spokes.",
+                "addressPrefixes": [
+                  "[parameters('ipamPoolPrefix')]"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers', variables('avnmName'))]"
+              ],
+              "metadata": {
+                "description": "2. Deploy the IPAM Pool as a child of the AVNM (conditionally)."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/networkGroups",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', variables('avnmName'), variables('hubNetworkGroupName'))]",
+              "properties": {
+                "description": "Static group containing the Hub VNet."
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers', variables('avnmName'))]"
+              ],
+              "metadata": {
+                "description": "4. Create the Network Group for the Hub VNet (Static Membership)."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/networkGroups/staticMembers",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}', variables('avnmName'), variables('hubNetworkGroupName'), 'hub-vnet-member')]",
+              "properties": {
+                "resourceId": "[parameters('hubVnetId')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), variables('hubNetworkGroupName'))]"
+              ],
+              "metadata": {
+                "description": "4a. Add the Hub VNet as a static member."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/networkGroups",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', variables('avnmName'), variables('spokesNetworkGroupName'))]",
+              "properties": {
+                "description": "Dynamic group for all tagged spoke VNets."
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers', variables('avnmName'))]"
+              ],
+              "metadata": {
+                "description": "5. Create the Network Group for all Spokes (Dynamic Membership)."
+              }
+            }
+          ],
+          "outputs": {
+            "avnmId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/networkManagers', variables('avnmName'))]"
+            },
+            "avnmName": {
+              "type": "string",
+              "value": "[variables('avnmName')]"
+            },
+            "ipamPoolId": {
+              "type": "string",
+              "value": "[if(parameters('manageIpamPool'), resourceId('Microsoft.Network/networkManagers/ipamPools', variables('avnmName'), parameters('ipamPoolName')), resourceId('Microsoft.Network/networkManagers/ipamPools', variables('avnmName'), parameters('ipamPoolName')))]"
+            },
+            "hubNetworkGroupId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), variables('hubNetworkGroupName'))]"
+            },
+            "hubStaticMemberId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups/staticMembers', variables('avnmName'), variables('hubNetworkGroupName'), 'hub-vnet-member')]"
+            },
+            "spokesNetworkGroupId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), variables('spokesNetworkGroupName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-vnet-gateway')]"
+      ],
+      "metadata": {
+        "description": "Module 1: Deploys Core AVNM Resources (AVNM, IPAM Pool, Network Groups)."
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "deploy-avnm-configs",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "avnmName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.avnmName.value]"
+          },
+          "hubVnetId": {
+            "value": "[parameters('hubVnetId')]"
+          },
+          "spokesNetworkGroupId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.spokesNetworkGroupId.value]"
+          },
+          "deployConnectivity": {
+            "value": "[parameters('deployConnectivity')]"
+          },
+          "firewallPrivateIpAddress": {
+            "value": "[parameters('firewallPrivateIpAddress')]"
+          },
+          "internalSupernet": {
+            "value": "[parameters('internalSupernet')]"
+          },
+          "useHubGateway": {
+            "value": "[parameters('useHubGateway')]"
+          },
+          "isGlobalConnectivity": {
+            "value": "[parameters('isGlobalConnectivity')]"
+          },
+          "deleteExistingPeering": {
+            "value": "[parameters('deleteExistingPeering')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "6109284532085123194"
+            }
+          },
+          "parameters": {
+            "avnmName": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the AVNM instance (from avnm-core.bicep)."
+              }
+            },
+            "hubVnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "The full Resource ID of the Hub VNet that acts as the hub in the connectivity configuration."
+              }
+            },
+            "spokesNetworkGroupId": {
+              "type": "string",
+              "metadata": {
+                "description": "The Resource ID of the Spokes Network Group."
+              }
+            },
+            "deployConnectivity": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Whether to deploy the Connectivity Configuration. Set true only after backend acceptance is verified."
+              }
+            },
+            "useHubGateway": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "If true, spokes use the hub gateway for transit (recommended for hub-and-spoke)."
+              }
+            },
+            "isGlobalConnectivity": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "If true, configuration is global across regions. Keep false for single-region deployments."
+              }
+            },
+            "deleteExistingPeering": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "If true, delete any existing manual peerings when applying connectivity."
+              }
+            },
+            "firewallPrivateIpAddress": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "The private IP address of the existing Hub Firewall. Optional; when empty, routing resources are skipped."
+              }
+            },
+            "internalSupernet": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "The internal supernet (IPAM pool) to force-route to the firewall. Optional; when empty, routing resources are skipped."
+              }
+            }
+          },
+          "variables": {
+            "enableRouting": "[and(not(empty(parameters('firewallPrivateIpAddress'))), not(empty(parameters('internalSupernet'))))]"
+          },
+          "resources": [
+            {
+              "condition": "[parameters('deployConnectivity')]",
+              "type": "Microsoft.Network/networkManagers/connectivityConfigurations",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', parameters('avnmName'), 'hub-and-spoke-connectivity')]",
+              "properties": {
+                "connectivityTopology": "HubAndSpoke",
+                "hubs": [
+                  {
+                    "resourceType": "Microsoft.Network/virtualNetworks",
+                    "resourceId": "[parameters('hubVnetId')]"
+                  }
+                ],
+                "appliesToGroups": [
+                  {
+                    "networkGroupId": "[parameters('spokesNetworkGroupId')]",
+                    "groupConnectivity": "None",
+                    "useHubGateway": "[if(parameters('useHubGateway'), 'True', 'False')]",
+                    "isGlobal": "[if(parameters('isGlobalConnectivity'), 'True', 'False')]"
+                  }
+                ],
+                "deleteExistingPeering": "[if(parameters('deleteExistingPeering'), 'True', 'False')]",
+                "isGlobal": "[if(parameters('isGlobalConnectivity'), 'True', 'False')]",
+                "connectivityCapabilities": {
+                  "connectedGroupPrivateEndpointsScale": "Standard",
+                  "connectedGroupAddressOverlap": "Allowed",
+                  "peeringEnforcement": "Unenforced"
+                }
+              },
+              "metadata": {
+                "description": "1. Connectivity Configuration (Hub-and-Spoke)."
+              }
+            },
+            {
+              "condition": "[variables('enableRouting')]",
+              "type": "Microsoft.Network/networkManagers/routingConfigurations",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', parameters('avnmName'), 'rc-force-all-traffic-to-firewall')]",
+              "properties": {
+                "description": "Forces all spoke traffic (Internet and Spoke-to-Spoke) to the hub firewall.",
+                "appliesToGroups": [
+                  {
+                    "networkGroupId": "[parameters('spokesNetworkGroupId')]"
+                  }
+                ]
+              },
+              "metadata": {
+                "description": "2. Routing Configuration (Force Traffic to Firewall)."
+              }
+            },
+            {
+              "condition": "[variables('enableRouting')]",
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules', 'allow-https-to-firewall')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Allow HTTPS traffic to hub firewall for inspection",
+                "priority": 200,
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Outbound",
+                "sources": [
+                  {
+                    "addressPrefix": "[parameters('internalSupernet')]",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "sourcePortRanges": [
+                  "0-65535"
+                ],
+                "destinations": [
+                  {
+                    "addressPrefix": "[parameters('firewallPrivateIpAddress')]",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "destinationPortRanges": [
+                  "443",
+                  "80"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]"
+              ],
+              "metadata": {
+                "description": "3e. Allow HTTPS (443/TCP) to hub firewall for spoke traffic inspection."
+              }
+            },
+            {
+              "condition": "[variables('enableRouting')]",
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules', 'deny-direct-internet-access')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Deny direct internet access from spokes to force traffic through firewall",
+                "priority": 300,
+                "protocol": "*",
+                "access": "Deny",
+                "direction": "Outbound",
+                "sources": [
+                  {
+                    "addressPrefix": "[parameters('internalSupernet')]",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "sourcePortRanges": [
+                  "0-65535"
+                ],
+                "destinations": [
+                  {
+                    "addressPrefix": "Internet",
+                    "addressPrefixType": "ServiceTag"
+                  }
+                ],
+                "destinationPortRanges": [
+                  "0-65535"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]"
+              ],
+              "metadata": {
+                "description": "3f. Deny direct internet access from spokes (force through firewall)."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules', 'allow-spoke-to-spoke-via-firewall')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Allow spoke-to-spoke traffic via hub firewall for security inspection",
+                "priority": 400,
+                "protocol": "*",
+                "access": "Allow",
+                "direction": "Inbound",
+                "sources": [
+                  {
+                    "addressPrefix": "[parameters('internalSupernet')]",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "sourcePortRanges": [
+                  "0-65535"
+                ],
+                "destinations": [
+                  {
+                    "addressPrefix": "[parameters('internalSupernet')]",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "destinationPortRanges": [
+                  "0-65535"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]"
+              ],
+              "metadata": {
+                "description": "3g. Allow spoke-to-spoke communication via hub firewall."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules', 'allow-dns-to-azure')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Allow DNS queries to Azure DNS",
+                "priority": 500,
+                "protocol": "Udp",
+                "access": "Allow",
+                "direction": "Outbound",
+                "sources": [
+                  {
+                    "addressPrefix": "[parameters('internalSupernet')]",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "sourcePortRanges": [
+                  "0-65535"
+                ],
+                "destinations": [
+                  {
+                    "addressPrefix": "AzureCloud",
+                    "addressPrefixType": "ServiceTag"
+                  }
+                ],
+                "destinationPortRanges": [
+                  "53"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]"
+              ],
+              "metadata": {
+                "description": "3i. Allow DNS (53/UDP) to Azure DNS for name resolution."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules', 'allow-azure-ad-auth')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Allow Azure AD authentication and management traffic",
+                "priority": 600,
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Outbound",
+                "sources": [
+                  {
+                    "addressPrefix": "[parameters('internalSupernet')]",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "sourcePortRanges": [
+                  "0-65535"
+                ],
+                "destinations": [
+                  {
+                    "addressPrefix": "AzureActiveDirectory",
+                    "addressPrefixType": "ServiceTag"
+                  }
+                ],
+                "destinationPortRanges": [
+                  "443",
+                  "80"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]"
+              ],
+              "metadata": {
+                "description": "3j. Allow Azure AD authentication traffic."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules', 'allow-azure-keyvault')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Allow Azure Key Vault access",
+                "priority": 700,
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Outbound",
+                "sources": [
+                  {
+                    "addressPrefix": "[parameters('internalSupernet')]",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "sourcePortRanges": [
+                  "0-65535"
+                ],
+                "destinations": [
+                  {
+                    "addressPrefix": "AzureKeyVault",
+                    "addressPrefixType": "ServiceTag"
+                  }
+                ],
+                "destinationPortRanges": [
+                  "443"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]"
+              ],
+              "metadata": {
+                "description": "3k. Allow Azure Key Vault access for secrets and certificates."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules', 'allow-azure-storage')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Allow Azure Storage access for diagnostics and logging",
+                "priority": 800,
+                "protocol": "Tcp",
+                "access": "Allow",
+                "direction": "Outbound",
+                "sources": [
+                  {
+                    "addressPrefix": "[parameters('internalSupernet')]",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "sourcePortRanges": [
+                  "0-65535"
+                ],
+                "destinations": [
+                  {
+                    "addressPrefix": "Storage",
+                    "addressPrefixType": "ServiceTag"
+                  }
+                ],
+                "destinationPortRanges": [
+                  "443"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]"
+              ],
+              "metadata": {
+                "description": "3l. Allow Azure Storage access for diagnostics and logs."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules', 'deny-all-other-traffic')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Deny all other traffic by default",
+                "priority": 4096,
+                "protocol": "*",
+                "access": "Deny",
+                "direction": "Outbound",
+                "sources": [
+                  {
+                    "addressPrefix": "*",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "sourcePortRanges": [
+                  "0-65535"
+                ],
+                "destinations": [
+                  {
+                    "addressPrefix": "*",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "destinationPortRanges": [
+                  "0-65535"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]"
+              ],
+              "metadata": {
+                "description": "3m. Deny all other traffic (default deny rule)."
+              }
+            },
+            {
+              "condition": "[variables('enableRouting')]",
+              "type": "Microsoft.Network/networkManagers/routingConfigurations/ruleCollections",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}', parameters('avnmName'), 'rc-force-all-traffic-to-firewall', 'rc-collection-default')]",
+              "properties": {
+                "appliesToGroups": [
+                  {
+                    "networkGroupId": "[parameters('spokesNetworkGroupId')]"
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/routingConfigurations', parameters('avnmName'), 'rc-force-all-traffic-to-firewall')]"
+              ],
+              "metadata": {
+                "description": "2a. Define the Rule Collection for the Routing Configuration."
+              }
+            },
+            {
+              "condition": "[variables('enableRouting')]",
+              "type": "Microsoft.Network/networkManagers/routingConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'rc-force-all-traffic-to-firewall', 'rc-collection-default', 'rule-default-to-firewall')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Route 0.0.0.0/0 to Hub Firewall",
+                "destinations": [
+                  {
+                    "addressPrefix": "0.0.0.0/0",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "nextHopType": "VirtualAppliance",
+                "nextHop": "[parameters('firewallPrivateIpAddress')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/routingConfigurations/ruleCollections', parameters('avnmName'), 'rc-force-all-traffic-to-firewall', 'rc-collection-default')]"
+              ],
+              "metadata": {
+                "description": "2b. Rule to force Internet-bound traffic to the firewall."
+              }
+            },
+            {
+              "condition": "[variables('enableRouting')]",
+              "type": "Microsoft.Network/networkManagers/routingConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'rc-force-all-traffic-to-firewall', 'rc-collection-default', 'rule-internal-to-firewall')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Route all internal spoke-to-spoke traffic to Hub Firewall",
+                "destinations": [
+                  {
+                    "addressPrefix": "[parameters('internalSupernet')]",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "nextHopType": "VirtualAppliance",
+                "nextHop": "[parameters('firewallPrivateIpAddress')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/routingConfigurations/ruleCollections', parameters('avnmName'), 'rc-force-all-traffic-to-firewall', 'rc-collection-default')]"
+              ],
+              "metadata": {
+                "description": "2c. Rule to force Spoke-to-Spoke traffic to the firewall."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', parameters('avnmName'), 'sac-global-baseline')]",
+              "properties": {
+                "description": "Enforces global security rules that override NSGs.",
+                "applyOnNetworkIntentPolicyBasedServices": []
+              },
+              "metadata": {
+                "description": "3. Security Admin Configuration (Baseline Governance)."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]",
+              "properties": {
+                "appliesToGroups": [
+                  {
+                    "networkGroupId": "[parameters('spokesNetworkGroupId')]"
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations', parameters('avnmName'), 'sac-global-baseline')]"
+              ],
+              "metadata": {
+                "description": "3a. Define the Security Rule Collection."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules', 'deny-rdp-from-internet')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Deny RDP from Internet to all spokes",
+                "priority": 100,
+                "protocol": "Tcp",
+                "access": "Deny",
+                "direction": "Inbound",
+                "sources": [
+                  {
+                    "addressPrefix": "Internet",
+                    "addressPrefixType": "ServiceTag"
+                  }
+                ],
+                "sourcePortRanges": [
+                  "0-65535"
+                ],
+                "destinations": [
+                  {
+                    "addressPrefix": "*",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "destinationPortRanges": [
+                  "3389"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]"
+              ],
+              "metadata": {
+                "description": "3b. Example Rule: Deny RDP from Internet to all spokes."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules', 'deny-ssh-from-internet')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Deny SSH from Internet to all spokes",
+                "priority": 101,
+                "protocol": "Tcp",
+                "access": "Deny",
+                "direction": "Inbound",
+                "sources": [
+                  {
+                    "addressPrefix": "Internet",
+                    "addressPrefixType": "ServiceTag"
+                  }
+                ],
+                "sourcePortRanges": [
+                  "0-65535"
+                ],
+                "destinations": [
+                  {
+                    "addressPrefix": "*",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "destinationPortRanges": [
+                  "22"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]"
+              ],
+              "metadata": {
+                "description": "3c. Deny SSH (22/TCP) from Internet to all spokes."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules', 'deny-smb-from-internet')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Deny SMB from Internet to all spokes",
+                "priority": 102,
+                "protocol": "Tcp",
+                "access": "Deny",
+                "direction": "Inbound",
+                "sources": [
+                  {
+                    "addressPrefix": "Internet",
+                    "addressPrefixType": "ServiceTag"
+                  }
+                ],
+                "sourcePortRanges": [
+                  "0-65535"
+                ],
+                "destinations": [
+                  {
+                    "addressPrefix": "*",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "destinationPortRanges": [
+                  "445"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]"
+              ],
+              "metadata": {
+                "description": "3d. Deny SMB (445/TCP) from Internet to all spokes."
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules', 'deny-winrm-from-internet')]",
+              "kind": "Custom",
+              "properties": {
+                "description": "Deny WinRM from Internet to all spokes",
+                "priority": 103,
+                "protocol": "Tcp",
+                "access": "Deny",
+                "direction": "Inbound",
+                "sources": [
+                  {
+                    "addressPrefix": "Internet",
+                    "addressPrefixType": "ServiceTag"
+                  }
+                ],
+                "sourcePortRanges": [
+                  "0-65535"
+                ],
+                "destinations": [
+                  {
+                    "addressPrefix": "*",
+                    "addressPrefixType": "IPPrefix"
+                  }
+                ],
+                "destinationPortRanges": [
+                  "5985",
+                  "5986"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]"
+              ],
+              "metadata": {
+                "description": "3e. Deny WinRM (5985/5986 TCP) from Internet to all spokes."
+              }
+            }
+          ],
+          "outputs": {
+            "connectivityConfigurationId": {
+              "type": "string",
+              "metadata": {
+                "description": "Connectivity configuration ID for commit operations."
+              },
+              "value": "[if(parameters('deployConnectivity'), resourceId('Microsoft.Network/networkManagers/connectivityConfigurations', parameters('avnmName'), 'hub-and-spoke-connectivity'), '')]"
+            },
+            "routingConfigurationId": {
+              "type": "string",
+              "metadata": {
+                "description": "Routing configuration ID for commit operations (if enabled)."
+              },
+              "value": "[if(variables('enableRouting'), resourceId('Microsoft.Network/networkManagers/routingConfigurations', parameters('avnmName'), 'rc-force-all-traffic-to-firewall'), '')]"
+            },
+            "securityAdminConfigurationId": {
+              "type": "string",
+              "metadata": {
+                "description": "Security admin configuration ID for commit operations."
+              },
+              "value": "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations', parameters('avnmName'), 'sac-global-baseline')]"
+            },
+            "securityAdminConfigId": {
+              "type": "string",
+              "metadata": {
+                "description": "Security Admin Configuration ID."
+              },
+              "value": "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations', parameters('avnmName'), 'sac-global-baseline')]"
+            },
+            "securityAdminRuleCollectionId": {
+              "type": "string",
+              "metadata": {
+                "description": "Security Admin Rule Collection ID."
+              },
+              "value": "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules')]"
+            },
+            "securityAdminRuleId": {
+              "type": "string",
+              "metadata": {
+                "description": "Security Admin Rule ID (example: deny RDP)."
+              },
+              "value": "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules', parameters('avnmName'), 'sac-global-baseline', 'sc-baseline-rules', 'deny-rdp-from-internet')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core')]",
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-vnet-gateway')]"
+      ],
+      "metadata": {
+        "description": "Module 3: Deploys AVNM Configurations (Connectivity, Routing, Security Admin)."
+      }
+    }
+  ],
+  "outputs": {
+    "avnmId": {
+      "type": "string",
+      "metadata": {
+        "description": "The Resource ID of the deployed AVNM instance."
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.avnmId.value]"
+    },
+    "ipamPoolId": {
+      "type": "string",
+      "metadata": {
+        "description": "The Resource ID of the IPAM Pool. This is a REQUIRED INPUT for the team-onboarding.bicep template."
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.ipamPoolId.value]"
+    },
+    "hubNetworkGroupId": {
+      "type": "string",
+      "metadata": {
+        "description": "The Resource ID of the Hub Network Group (static)."
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.hubNetworkGroupId.value]"
+    },
+    "spokesNetworkGroupId": {
+      "type": "string",
+      "metadata": {
+        "description": "The Resource ID of the Spokes Network Group (dynamic)."
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.spokesNetworkGroupId.value]"
+    },
+    "securityAdminConfigId": {
+      "type": "string",
+      "metadata": {
+        "description": "Security Admin Configuration ID (if deployed)."
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-configs'), '2025-04-01').outputs.securityAdminConfigId.value]"
+    },
+    "securityAdminRuleCollectionId": {
+      "type": "string",
+      "metadata": {
+        "description": "Security Admin Rule Collection ID (if deployed)."
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-configs'), '2025-04-01').outputs.securityAdminRuleCollectionId.value]"
+    },
+    "securityAdminRuleId": {
+      "type": "string",
+      "metadata": {
+        "description": "Security Admin Rule ID (if deployed)."
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-configs'), '2025-04-01').outputs.securityAdminRuleId.value]"
+    },
+    "gatewayId": {
+      "type": "string",
+      "metadata": {
+        "description": "The Resource ID of the Virtual Network Gateway (if deployed)."
+      },
+      "value": "[if(parameters('deployVirtualNetworkGateway'), reference(resourceId('Microsoft.Resources/deployments', 'deploy-vnet-gateway'), '2025-04-01').outputs.gatewayId.value, '')]"
+    },
+    "gatewayName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the Virtual Network Gateway (if deployed)."
+      },
+      "value": "[if(parameters('deployVirtualNetworkGateway'), reference(resourceId('Microsoft.Resources/deployments', 'deploy-vnet-gateway'), '2025-04-01').outputs.gatewayName.value, '')]"
+    },
+    "gatewayPublicIpId": {
+      "type": "string",
+      "metadata": {
+        "description": "The Resource ID of the Gateway Public IP (if deployed)."
+      },
+      "value": "[if(parameters('deployVirtualNetworkGateway'), reference(resourceId('Microsoft.Resources/deployments', 'deploy-vnet-gateway'), '2025-04-01').outputs.publicIpId.value, '')]"
+    },
+    "gatewayPublicIpAddress": {
+      "type": "string",
+      "metadata": {
+        "description": "The IP address of the Gateway Public IP (if deployed)."
+      },
+      "value": "[if(parameters('deployVirtualNetworkGateway'), reference(resourceId('Microsoft.Resources/deployments', 'deploy-vnet-gateway'), '2025-04-01').outputs.publicIpAddress.value, '')]"
+    }
+  }
+}

@@ -17,7 +17,7 @@
       ]
     },
     "ipamPoolPrefix": {
-      "value": "10.0.0.0/17"
+      "value": "172.16.128.0/17"
     },
     "deployConnectivity": {
       "value": true
@@ -26,7 +26,7 @@
       "value": ""
     },
     "internalSupernet": {
-      "value": "10.0.0.0/17"
+      "value": "172.16.128.0/17"
     },
     "enableSubscriptionPolicy": {
       "value": true

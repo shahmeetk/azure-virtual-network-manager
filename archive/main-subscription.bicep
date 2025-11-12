@@ -10,10 +10,16 @@
 targetScope = 'subscription'
 
 // === PARAMETERS ===
+@description('Onboarding mode (informational). Defaults to subscription.')
+@allowed([
+  'managementGroup'
+  'subscription'
+])
+param onboardingMode string = 'subscription'
+
 @description('Short, unique name for the new team (e.g., "TeamA"). Used for naming.')
 @minLength(2)
 @maxLength(10)
-@pattern('^[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]$')
 param teamName string
 
 @description('The Azure region to deploy the spoke VNet resources into.')
@@ -68,6 +74,27 @@ param includeTagName string = 'avnm-group'
 
 @description('Tag value used by AVNM policy to auto-onboard VNets to the Spokes Network Group (optional).')
 param includeTagValue string = 'spokes'
+
+// === OPTIONAL (MG-only) PARAMETERS ACCEPTED FOR PARAM FILE COMPATIBILITY ===
+@description('Parent Management Group ID (accepted for compatibility; not used in subscription mode).')
+param parentManagementGroupId string = ''
+
+@description('Billing scope resource ID for subscription creation (accepted; not used in subscription mode).')
+@secure()
+param billingScope string = ''
+
+@description('Max retries for subscription creation (accepted; not used in subscription mode).')
+@minValue(1)
+@maxValue(10)
+param maxRetries int = 3
+
+@description('Retry delay seconds (accepted; not used in subscription mode).')
+@minValue(30)
+@maxValue(300)
+param retryDelaySeconds int = 60
+
+@description('Enable logging (accepted; not used in subscription mode).')
+param enableLogging bool = true
 
 // === RESOURCES ===
 

@@ -26,11 +26,30 @@ param ipamPoolId string
 @description('The size of the VNet as a CIDR bit (e.g., 24).')
 param vnetSizeInBits int
 
+@description('Tag name used by policy to auto-onboard spokes (optional).')
+param includeTagName string = 'avnm-group'
+
+@description('Tag value used by policy to auto-onboard spokes (optional).')
+param includeTagValue string = 'spokes'
+
 // === VARIABLES ===
 var rgName = 'rg-${teamName}-${environment}-net'
 var vnetName = 'vnet-${teamName}-${environment}'
-// Calculate the number of IPs (e.g., /24 = 2^(32-24) = 256) and convert to string for the API [19, 20]
-var vnetSizeAsNumberString = string(pow(2, 32 - vnetSizeInBits))
+// Map CIDR size to number of IP addresses as a string (Bicep lacks pow())
+var vnetSizeAsNumberString = vnetSizeInBits == 16 ? '65536'
+  : vnetSizeInBits == 17 ? '32768'
+  : vnetSizeInBits == 18 ? '16384'
+  : vnetSizeInBits == 19 ? '8192'
+  : vnetSizeInBits == 20 ? '4096'
+  : vnetSizeInBits == 21 ? '2048'
+  : vnetSizeInBits == 22 ? '1024'
+  : vnetSizeInBits == 23 ? '512'
+  : vnetSizeInBits == 24 ? '256'
+  : vnetSizeInBits == 25 ? '128'
+  : vnetSizeInBits == 26 ? '64'
+  : vnetSizeInBits == 27 ? '32'
+  : vnetSizeInBits == 28 ? '16'
+  : '256'
 
 // === RESOURCES ===
 
@@ -56,5 +75,6 @@ module vnetDeploy 'vnet-from-ipam.bicep' = {
     numberOfIpAddresses: vnetSizeAsNumberString
     teamName: teamName
     environment: environment
+    includeTagValue: includeTagValue
   }
 }

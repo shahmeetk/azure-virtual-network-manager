@@ -28,9 +28,6 @@ param teamName string
 @description('Tag: Environment name.')
 param environment string
 
-@description('Tag name used by policy to auto-onboard spokes (default avnm-group).')
-param includeTagName string = 'avnm-group'
-
 @description('Tag value used by policy to auto-onboard spokes (default spokes).')
 param includeTagValue string = 'spokes'
 
@@ -44,7 +41,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-10-01' = {
     Team: teamName
     Environment: environment
     // Tag used by AVNM subscription policy to auto-onboard this VNet to Spokes NG
-    [includeTagName]: includeTagValue
+    'avnm-group': includeTagValue
   }
   properties: {
     // We DO NOT define 'addressPrefixes'

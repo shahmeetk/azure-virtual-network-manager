@@ -58,6 +58,15 @@ param includeTagName string = 'avnm-group'
 @description('Tag value used by policy to auto-onboard spokes (default spokes).')
 param includeTagValue string = 'spokes'
 
+@description('Connectivity: allow spokes to use hub gateway (transit to on-prem).')
+param useHubGateway bool = true
+
+@description('Connectivity: treat configuration as global across regions.')
+param isGlobalConnectivity bool = false
+
+@description('Connectivity: delete pre-existing manual peerings when applying.')
+param deleteExistingPeering bool = true
+
 // --- Policy deployment scope parameters (to drive scripts/unified policy module) ---
 @description('Policy scope type. Use "Subscription" (default) or "ManagementGroup". This template does not use it directly but accepts it so the parameter file can drive scripts.')
 param policyScopeType string = 'Subscription'
@@ -107,6 +116,9 @@ module avnmConfigs 'modules/avnm-configs.bicep' = {
     deployConnectivity: deployConnectivity
     firewallPrivateIpAddress: firewallPrivateIpAddress
     internalSupernet: internalSupernet
+    useHubGateway: useHubGateway
+    isGlobalConnectivity: isGlobalConnectivity
+    deleteExistingPeering: deleteExistingPeering
   }
 }
 
