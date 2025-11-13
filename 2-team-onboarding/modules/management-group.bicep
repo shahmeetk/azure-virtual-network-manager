@@ -1,31 +1,32 @@
-// == PURPOSE ==
-// This module creates a management group for team organization.
-// It handles management group creation with proper validation and error handling.
-// == PARAMETERS ==
-@description('Name of the team.')
-@minLength(1)
-@maxLength(50)
-@pattern('^[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]$')
-param teamName string
+/*
+  ====================================================================
+  MODULE:   management-group.bicep
+  SCOPE:    Tenant
+  DESC:     Creates a new management group under a specified parent.
+  ====================================================================
+*/
 
-@description('Parent management group ID.')
+targetScope = 'tenant'
+
+// === PARAMETERS ===
+@description('The unique name for the new management group. This is the ID, not the display name.')
+@minLength(3)
+@maxLength(24)
+param managementGroupName string
+
+@description('The friendly display name for the new management group.')
 @minLength(1)
-@maxLength(100)
+param managementGroupDisplayName string
+
+@description('The ID of the parent management group.')
 param parentManagementGroupId string
 
-@description('Tags to apply to the management group.')
-param tags object = {}
-
-// == VARIABLES ==
-var managementGroupName = '${teamName}-mg'
-var sanitizedTeamName = replace(replace(teamName, ' ', '-'), '_', '-')
-
-// == RESOURCES ==
-@description('Create team management group')
+// === RESOURCES ===
+@description('Creates the team-specific management group.')
 resource teamManagementGroup 'Microsoft.Management/managementGroups@2023-04-01' = {
   name: managementGroupName
   properties: {
-    displayName: 'MG - ${sanitizedTeamName}'
+    displayName: managementGroupDisplayName
     details: {
       parent: {
         id: '/providers/Microsoft.Management/managementGroups/${parentManagementGroupId}'
@@ -34,9 +35,9 @@ resource teamManagementGroup 'Microsoft.Management/managementGroups@2023-04-01' 
   }
 }
 
-// == OUTPUTS ==
-@description('The ID of the created management group.')
-output teamManagementGroupId string = teamManagementGroup.id
+// === OUTPUTS ===
+@description('The full resource ID of the created management group.')
+output managementGroupId string = teamManagementGroup.id
 
-@description('The name of the created management group.')
-output teamManagementGroupName string = teamManagementGroup.name
+@description('The name (ID) of the created management group.')
+output managementGroupName string = teamManagementGroup.name

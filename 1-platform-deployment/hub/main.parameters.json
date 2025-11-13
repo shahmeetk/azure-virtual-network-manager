@@ -9,7 +9,7 @@
       "value": "eastus"
     },
     "hubVnetId": {
-      "value": "/subscriptions/b572f84c-ea09-465a-a35b-b4b1ee9a7152/resourceGroups/aznm-test/providers/Microsoft.Network/virtualNetworks/aznm-test-vnet"
+      "value": "/subscriptions/b572f84c-ea09-465a-a35b-b4b1ee9a7152/resourceGroups/avnm2-test/providers/Microsoft.Network/virtualNetworks/aznm-test-vnet"
     },
     "subscriptionIds": {
       "value": [
@@ -23,7 +23,7 @@
       "value": true
     },
     "firewallPrivateIpAddress": {
-      "value": ""
+      "value": "172.16.15.6"
     },
     "internalSupernet": {
       "value": "172.16.128.0/17"

@@ -1,188 +1,63 @@
 /*
   ====================================================================
-  FILE:     main.bicep (Unified Team Onboarding)
-  SCOPE:    Tenant (/) or Subscription
-  DESC:     Unified team onboarding that supports both management group
-            and subscription modes with conditional logic.
-            
-            Modes:
-            - managementGroup: Creates MG + subscriptions + VNets
-            - subscription: Creates RG + VNets in current subscription
+  FILE:     main.bicep (Team Onboarding)
+  SCOPE:    Management Group
+  DESC:     Orchestrates the creation of resources for new teams,
+            including management groups and subscriptions.
   ====================================================================
 */
 
-// Determine target scope based on onboarding mode
-param onboardingMode string = 'managementGroup'
-targetScope = onboardingMode == 'managementGroup' ? 'tenant' : 'subscription'
+// This template should be deployed at the management group level that will contain the new team MGs.
+targetScope = 'managementGroup'
 
 // === PARAMETERS ===
-@description('Short, unique name for the new team (e.g., "TeamA"). Used for naming.')
-@minLength(2)
-@maxLength(10)
-@pattern('^[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]$')
-param teamName string
+@description('The parent management group ID where the new team management groups will be created.')
+param parentManagementGroupId string = managementGroup().id
 
-@description('The Azure region to deploy the spoke VNet resources into.')
-@allowed([
-  'eastus'
-  'eastus2'
-  'westus'
-  'westus2'
-  'centralus'
-  'northcentralus'
-  'southcentralus'
-  'northeurope'
-  'westeurope'
-  'uksouth'
-  'ukwest'
-  'canadacentral'
-  'canadaeast'
-  'australiaeast'
-  'australiasoutheast'
-  'japaneast'
-  'japanwest'
-  'southeastasia'
-  'eastasia'
-])
-param location string
-
-@description('Array of environment names. A subscription will be created for each.')
-@allowed([
-  'dev'
-  'uat'
-  'prod'
-  'test'
-  'staging'
-])
-param environments array = [
-  'dev'
-  'uat'
-  'prod'
-]
-
-@description('The Resource ID of the AVNM IPAM Pool (from hub-deploy output).')
+@description('The full resource ID of the billing account scope for new subscriptions.')
 @secure()
-@minLength(10)
-param ipamPoolId string
+param billingAccountScope string
 
-@description('The size of the VNet as a CIDR bit (e.g., 24 for a /24).')
-@allowed([ 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28 ])
-param vnetSizeInBits int = 24
+@description('An array of team objects to onboard. Each object should define the team name and desired subscription display name.')
+param teams array = []
 
-@description('Tag name used by AVNM policy to auto-onboard VNets to the Spokes Network Group (optional).')
-param includeTagName string = 'avnm-group'
+// === MAIN ORCHESTRATION ===
 
-@description('Tag value used by AVNM policy to auto-onboard VNets to the Spokes Network Group (optional).')
-param includeTagValue string = 'spokes'
-
-// Management Group Mode Specific Parameters
-@description('The ID of the parent Management Group to place the new team MG under (required for managementGroup mode).')
-@minLength(1)
-@maxLength(100)
-param parentManagementGroupId string = ''
-
-@description('The full Resource ID of the billing scope for new subscriptions (required for managementGroup mode).')
-@secure()
-@minLength(10)
-param billingScope string = ''
-
-@description('Maximum number of retry attempts for subscription creation (managementGroup mode only).')
-@minValue(1)
-@maxValue(10)
-param maxRetries int = 3
-
-@description('Delay in seconds between retry attempts (managementGroup mode only).')
-@minValue(30)
-@maxValue(300)
-param retryDelaySeconds int = 60
-
-@description('Enable detailed logging for subscription creation process (managementGroup mode only).')
-param enableLogging bool = true
-
-// === VALIDATIONS ===
-// Validate required parameters for managementGroup mode
-var mgModeValidation = onboardingMode == 'managementGroup' && (empty(parentManagementGroupId) || empty(billingScope))
-output mgModeValidationError string = mgModeValidation ? 'ERROR: parentManagementGroupId and billingScope are required for managementGroup mode' : ''
-
-// === VARIABLES ===
-var teamMgName = 'mg-${teamName}'
-
-// === RESOURCES ===
-
-// Management Group Creation (managementGroup mode only)
-@description('Module: Create team Management Group')
-module teamMg 'modules/management-group.bicep' = if (onboardingMode == 'managementGroup') {
-  name: 'deploy-team-mg'
-  scope: managementGroup('${parentManagementGroupId}')
+@description('Loop through each team to create their dedicated management group.')
+module teamManagementGroups 'modules/management-group.bicep' = [for (team, i) in teams: {
+  name: 'deploy-mg-${team.name}-${i}'
+  scope: tenant() // Management groups are tenant-level resources
   params: {
-    teamName: teamName
+    managementGroupName: '${team.name}-mg'
+    managementGroupDisplayName: 'MG for ${team.name}'
     parentManagementGroupId: parentManagementGroupId
-  }
-}
-
-// Subscription Creation (managementGroup mode only)
-@description('Module: Create subscriptions for each environment with retry logic')
-module subscriptionCreation 'modules/subscription-creation.bicep' = if (onboardingMode == 'managementGroup') [for env in environments: {
-  name: 'create-subscription-${teamName}-${env}'
-  scope: tenant()
-  params: {
-    subscriptionName: '${teamName}-${env}'
-    billingScope: billingScope
-    managementGroupId: teamMg.outputs.teamManagementGroupId
-    tags: {
-      Team: teamName
-      Environment: env
-      Purpose: 'Team onboarding'
-      ManagedBy: 'Azure Enterprise Bicep'
-      CreatedDate: utcNow('yyyy-MM-dd')
-    }
-    maxRetries: maxRetries
-    retryDelaySeconds: retryDelaySeconds
-    enableLogging: enableLogging
   }
 }]
 
-// Spoke Infrastructure Deployment (both modes)
-@description('Module: Deploy spoke infrastructure (Resource Group + VNet)')
-module spokeInfra 'modules/spoke-infra-deploy.bicep' = [for (env, i) in environments: {
-  name: 'deploy-spoke-${teamName}-${env}'
-  scope: onboardingMode == 'managementGroup'
-    ? subscription(subscriptionCreation[i].outputs.subscriptionId)
-    : subscription()
+@description('Loop through each team to create their subscription.')
+module subscriptionCreation 'modules/subscription-creation.bicep' = [for (team, i) in teams: {
+  name: 'deploy-sub-${team.name}-${i}'
+  scope: tenant() // Subscriptions are created at the tenant level
+  dependsOn: [
+    teamManagementGroups[i] // Ensure the MG exists before placing a sub in it
+  ]
   params: {
-    location: location
-    teamName: teamName
-    environment: env
-    ipamPoolId: ipamPoolId
-    vnetSizeInBits: vnetSizeInBits
-    includeTagName: includeTagName
-    includeTagValue: includeTagValue
+    subscriptionAliasName: '${team.name}-sub-alias-${uniqueString(team.name)}'
+    subscriptionDisplayName: team.subscriptionDisplayName
+    billingAccountScope: billingAccountScope
+    targetManagementGroupId: teamManagementGroups[i].outputs.managementGroupId
   }
 }]
 
 // === OUTPUTS ===
-@description('The deployment mode used.')
-output onboardingMode string = onboardingMode
-
-@description('The ID of the new Team Management Group (empty in subscription mode).')
-output teamManagementGroupId string = onboardingMode == 'managementGroup' ? teamMg.outputs.teamManagementGroupId : ''
-
-@description('Information about created subscriptions by environment (present only in managementGroup mode).')
-output subscriptions array = onboardingMode == 'managementGroup'
-  ? [for (env, i) in environments: {
-      environment: env
-      name: subscriptionCreation[i].outputs.subscriptionName
-      subscriptionId: subscriptionCreation[i].outputs.subscriptionId
-    }]
-  : []
-
-@description('Information about created spoke VNets by environment.')
-output spokeVnets array = [for (env, i) in environments: {
-  environment: env
-  vnetId: spokeInfra[i].outputs.vnetId
-  vnetName: spokeInfra[i].outputs.vnetName
-  resourceGroupName: spokeInfra[i].outputs.resourceGroupName
+@description('The outputs from the management group module deployments.')
+output managementGroupDeployments array = [for (team, i) in teams: {
+  teamName: team.name
+  managementGroupId: teamManagementGroups[i].outputs.managementGroupId
 }]
 
-@description('Validation error message if any.')
-output validationError string = mgModeValidationError
+@description('The outputs from the subscription creation module deployments.')
+output subscriptionDeployments array = [for (team, i) in teams: {
+  teamName: team.name
+  subscriptionAliasName: subscriptionCreation[i].outputs.subscriptionAliasName
+}]

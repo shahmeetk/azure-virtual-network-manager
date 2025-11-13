@@ -21,7 +21,7 @@
       "value": ["dev", "uat", "prod"]
     },
     "ipamPoolId": {
-      "value": "/subscriptions/b572f84c-ea09-465a-a35b-b4b1ee9a7152/resourceGroups/aznm-test/providers/Microsoft.Network/networkManagers/test-avnm/ipamPools/test-ipam-pool"
+      "value": "/subscriptions/b572f84c-ea09-465a-a35b-b4b1ee9a7152/resourceGroups/aznm2-test/providers/Microsoft.Network/networkManagers/test-avnm/ipamPools/test-ipam-pool"
     },
     "vnetSizeInBits": {
       "value": 24
