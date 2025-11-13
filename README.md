@@ -6,8 +6,8 @@ A modular, production‑ready Azure landing zone built with Bicep. It implements
 ## Overview
 
 This repository provides two main deployment flows:
-- Platform hub provisioning at Resource Group scope (AVNM + IPAM + configs + security/monitoring/cost/backup).
-- Team onboarding at Tenant scope (management group, subscriptions, VNet allocation from IPAM, spoke infra).
+- Platform hub provisioning at Resource Group scope (AVNM + IPAM + configs + policy).
+- Team onboarding at Subscription scope (create or reuse a spoke Resource Group and deploy a spoke VNet allocated from IPAM).
 
 You can use the provided scripts to validate, test (what‑if or real), and automate deployments across environments.
 
@@ -22,7 +22,7 @@ You can use the provided scripts to validate, test (what‑if or real), and auto
 
 Entry points:
 - Platform hub: `azure-enterprise-bicep/1-platform-deployment/hub/main.bicep` (targetScope: `resourceGroup`)
-- Team onboarding: `azure-enterprise-bicep/2-team-onboarding/main.bicep` (targetScope: `tenant`)
+- Team onboarding: `azure-enterprise-bicep/2-team-onboarding/subscription-main.bicep` (targetScope: `subscription`)
 
 Automation scripts (under `azure-enterprise-bicep/scripts/`):
 - `validate-bicep.sh` — compile/validate and basic static checks
@@ -43,18 +43,11 @@ azure-enterprise-bicep/
 │           ├── avnm-core.bicep
 │           ├── avnm-policy.bicep
 │           ├── avnm-configs.bicep
-│           ├── security-config.bicep
-│           ├── monitoring-config.bicep
-│           ├── cost-optimization.bicep
-│           ├── backup-config.bicep
-│           └── disaster-recovery.bicep
+│           └── (optional) security/monitoring/cost/backup modules
 ├── 2-team-onboarding/
-│   ├── main.bicep
-│   ├── team-a.parameters.json
-│   ├── team-b.parameters.json
+│   ├── subscription-main.bicep
+│   ├── main.parameters.json
 │   └── modules/
-│       ├── management-group.bicep
-│       ├── subscription-creation.bicep
 │       ├── spoke-infra-deploy.bicep
 │       └── vnet-from-ipam.bicep
 └── scripts/
@@ -64,7 +57,7 @@ azure-enterprise-bicep/
     └── backup-restore.sh
 ```
 
-Note: Some documentation sections in prior versions referenced `tests/` or `docs/` folders that do not exist in this repository. See TODOs below.
+Note: The project has been streamlined. Legacy management‑group onboarding and deprecated modules/scripts have been removed.
 
 
 ## Requirements
@@ -603,10 +596,6 @@ azure-enterprise-bicep/
 - **Naming Conventions**: Consistent naming patterns
 - **Documentation**: Comprehensive code comments
 - **Testing**: Adequate test coverage
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 

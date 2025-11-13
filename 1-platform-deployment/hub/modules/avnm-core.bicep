@@ -46,6 +46,7 @@ resource avnm 'Microsoft.Network/networkManagers@2024-10-01' = {
     networkManagerScopeAccesses: [
       'Connectivity'
       'SecurityAdmin'
+      'Routing'
     ]
     networkManagerScopes: {
       subscriptions: subscriptionResourceIds
@@ -76,9 +77,6 @@ resource ipamPoolExisting 'Microsoft.Network/networkManagers/ipamPools@2024-10-0
 resource hubNetworkGroup 'Microsoft.Network/networkManagers/networkGroups@2024-10-01' = {
   parent: avnm
   name: hubNetworkGroupName
-  dependsOn: [
-    avnm
-  ]
   properties: {
     description: 'Static group containing the Hub VNet.'
   }
@@ -88,9 +86,6 @@ resource hubNetworkGroup 'Microsoft.Network/networkManagers/networkGroups@2024-1
 resource hubStaticMember 'Microsoft.Network/networkManagers/networkGroups/staticMembers@2024-10-01' = {
   parent: hubNetworkGroup
   name: 'hub-vnet-member'
-  dependsOn: [
-    hubNetworkGroup
-  ]
   properties: {
     resourceId: hubVnetId
   }
@@ -100,9 +95,6 @@ resource hubStaticMember 'Microsoft.Network/networkManagers/networkGroups/static
 resource spokesNetworkGroup 'Microsoft.Network/networkManagers/networkGroups@2024-10-01' = {
   parent: avnm
   name: spokesNetworkGroupName
-  dependsOn: [
-    avnm
-  ]
   properties: {
     description: 'Dynamic group for all tagged spoke VNets.'
   }

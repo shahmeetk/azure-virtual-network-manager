@@ -27,6 +27,9 @@ param environment string
 @minLength(10)
 param ipamPoolId string
 
+@description('The name of the spoke Resource Group to create or use if it already exists.')
+param spokeResourceGroupName string
+
 @description('The size of the VNet as a CIDR bit (e.g., 24 for a /24).')
 @allowed([ 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28 ])
 param vnetSizeInBits int = 24
@@ -48,6 +51,7 @@ module spokeInfra 'modules/spoke-infra-deploy.bicep' = {
     vnetSizeInBits: vnetSizeInBits
     includeTagName: includeTagName
     includeTagValue: includeTagValue
+    spokeRgName: spokeResourceGroupName
   }
 }
 

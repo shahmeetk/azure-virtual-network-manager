@@ -32,9 +32,11 @@ param includeTagName string = 'avnm-group'
 @description('Tag value used by policy to auto-onboard spokes (optional).')
 param includeTagValue string = 'spokes'
 
+@description('The name of the spoke Resource Group to create or use if it exists.')
+param spokeRgName string
+
 // === VARIABLES ===
-var rgName = 'rg-${teamName}-${environment}-net'
-var vnetName = 'vnet-${teamName}-${environment}'
+var vnetName = 'vnet-${spokeRgName}-${environment}'
 // Map CIDR size to number of IP addresses as a string (Bicep lacks pow())
 var vnetSizeAsNumberString = vnetSizeInBits == 16 ? '65536'
   : vnetSizeInBits == 17 ? '32768'
@@ -55,7 +57,7 @@ var vnetSizeAsNumberString = vnetSizeInBits == 16 ? '65536'
 
 @description('1. Create the Resource Group for the spoke network.')
 resource spokeRg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
-  name: rgName
+  name: spokeRgName
   location: location
   tags: {
     Team: teamName

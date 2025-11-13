@@ -36,21 +36,36 @@ param firewallPrivateIpAddress string = ''
 @description('The internal supernet (IPAM pool) to force-route to the firewall. Optional; when empty, routing resources are skipped.')
 param internalSupernet string = ''
 
+@description('Name for the connectivity configuration.')
+param connectivityConfigName string = 'hub-and-spoke-connectivity'
+
+@description('Name for the routing configuration.')
+param routingConfigName string = 'rc-force-all-traffic-to-firewall'
+
+@description('Name for the routing rule collection.')
+param routeRuleCollectionName string = 'rc-collection-default'
+
+@description('Name for the security admin configuration.')
+param securityAdminConfigName string = 'sac-global-baseline'
+
+@description('Name for the security admin rule collection.')
+param securityAdminRuleCollectionName string = 'sc-baseline-rules'
+
 // Routing is enabled only when both firewall IP and internal supernet are provided.
 var enableRouting = !empty(firewallPrivateIpAddress) && !empty(internalSupernet)
 
 // === EXISTING RESOURCES ===
 @description('Reference to the parent AVNM resource.')
-resource avnm 'Microsoft.Network/networkManagers@2024-10-01' existing = {
+resource avnm 'Microsoft.Network/networkManagers@2024-07-01' existing = {
   name: avnmName
 }
 
 // === RESOURCES ===
 
 @description('1. Connectivity Configuration (Hub-and-Spoke).')
-resource connConfig 'Microsoft.Network/networkManagers/connectivityConfigurations@2024-10-01' = if (deployConnectivity) {
+resource connConfig 'Microsoft.Network/networkManagers/connectivityConfigurations@2024-07-01' = if (deployConnectivity) {
   parent: avnm
-  name: 'hub-and-spoke-connectivity'
+  name: connectivityConfigName
   properties: {
     connectivityTopology: 'HubAndSpoke'
     hubs: [
@@ -79,16 +94,11 @@ resource connConfig 'Microsoft.Network/networkManagers/connectivityConfiguration
 }
 
 @description('2. Routing Configuration (Force Traffic to Firewall).')
-resource routeConfig 'Microsoft.Network/networkManagers/routingConfigurations@2024-10-01' = if (enableRouting) {
+resource routeConfig 'Microsoft.Network/networkManagers/routingConfigurations@2024-07-01' = if (enableRouting) {
   parent: avnm
-  name: 'rc-force-all-traffic-to-firewall'
+  name: routingConfigName
   properties: {
     description: 'Forces all spoke traffic (Internet and Spoke-to-Spoke) to the hub firewall.'
-    appliesToGroups: [
-      {
-        networkGroupId: spokesNetworkGroupId
-      }
-    ]
   }
 }
 
@@ -103,11 +113,11 @@ output routingConfigurationId string = enableRouting ? routeConfig.id : ''
 output securityAdminConfigurationId string = secConfig.id
 
 @description('2a. Define the Rule Collection for the Routing Configuration.')
-resource routeRuleCollection 'Microsoft.Network/networkManagers/routingConfigurations/ruleCollections@2024-10-01' = if (enableRouting) {
+resource routeRuleCollection 'Microsoft.Network/networkManagers/routingConfigurations/ruleCollections@2024-07-01' = if (enableRouting) {
   parent: routeConfig
-  name: 'rc-collection-default'
+  name: routeRuleCollectionName
   properties: {
-    appliesToGroups: [
+    appliesTo: [
       {
         networkGroupId: spokesNetworkGroupId
       }
@@ -116,45 +126,43 @@ resource routeRuleCollection 'Microsoft.Network/networkManagers/routingConfigura
 }
 
 @description('2b. Rule to force Internet-bound traffic to the firewall.')
-resource routeRuleDefault 'Microsoft.Network/networkManagers/routingConfigurations/ruleCollections/rules@2024-10-01' = if (enableRouting) {
+resource routeRuleDefault 'Microsoft.Network/networkManagers/routingConfigurations/ruleCollections/rules@2024-07-01' = if (enableRouting) {
   parent: routeRuleCollection
   name: 'rule-default-to-firewall'
-  kind: 'Custom'
   properties: {
     description: 'Route 0.0.0.0/0 to Hub Firewall'
-    destinations: [
-      {
-        addressPrefix: '0.0.0.0/0'
-        addressPrefixType: 'IPPrefix'
-      }
-    ]
-    nextHopType: 'VirtualAppliance'
-    nextHop: firewallPrivateIpAddress
+    destination: {
+      destinationAddress: '0.0.0.0/0'
+      type: 'AddressPrefix'
+    }
+    nextHop: {
+      nextHopType: 'VirtualAppliance'
+      nextHopAddress: firewallPrivateIpAddress
+    }
   }
 }
 
 @description('2c. Rule to force Spoke-to-Spoke traffic to the firewall.')
-resource routeRuleInternal 'Microsoft.Network/networkManagers/routingConfigurations/ruleCollections/rules@2024-10-01' = if (enableRouting) {
+resource routeRuleInternal 'Microsoft.Network/networkManagers/routingConfigurations/ruleCollections/rules@2024-07-01' = if (enableRouting) {
   parent: routeRuleCollection
   name: 'rule-internal-to-firewall'
-  kind: 'Custom'
   properties: {
     description: 'Route all internal spoke-to-spoke traffic to Hub Firewall'
-    destinations: [
-      {
-        addressPrefix: internalSupernet
-        addressPrefixType: 'IPPrefix'
-      }
-    ]
-    nextHopType: 'VirtualAppliance'
-    nextHop: firewallPrivateIpAddress
+    destination: {
+      destinationAddress: internalSupernet
+      type: 'AddressPrefix'
+    }
+    nextHop: {
+      nextHopType: 'VirtualAppliance'
+      nextHopAddress: firewallPrivateIpAddress
+    }
   }
 }
 
 @description('3. Security Admin Configuration (Baseline Governance).')
-resource secConfig 'Microsoft.Network/networkManagers/securityAdminConfigurations@2024-10-01' = {
+resource secConfig 'Microsoft.Network/networkManagers/securityAdminConfigurations@2024-07-01' = {
   parent: avnm
-  name: 'sac-global-baseline'
+  name: securityAdminConfigName
   dependsOn: [
     avnm
   ]
@@ -165,12 +173,9 @@ resource secConfig 'Microsoft.Network/networkManagers/securityAdminConfiguration
 }
 
 @description('3a. Define the Security Rule Collection.')
-resource secRuleCollection 'Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections@2024-10-01' = {
+resource secRuleCollection 'Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections@2024-07-01' = {
   parent: secConfig
-  name: 'sc-baseline-rules'
-  dependsOn: [
-    secConfig
-  ]
+  name: securityAdminRuleCollectionName
   properties: {
     appliesToGroups: [
       {
@@ -181,7 +186,7 @@ resource secRuleCollection 'Microsoft.Network/networkManagers/securityAdminConfi
 }
 
 @description('3b. Example Rule: Deny RDP from Internet to all spokes.')
-resource secRuleDenyRDP 'Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules@2024-10-01' = {
+resource secRuleDenyRDP 'Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules@2024-07-01' = {
   parent: secRuleCollection
   name: 'deny-rdp-from-internet'
   kind: 'Custom'
@@ -213,7 +218,7 @@ resource secRuleDenyRDP 'Microsoft.Network/networkManagers/securityAdminConfigur
 }
 
 @description('3c. Deny SSH (22/TCP) from Internet to all spokes.')
-resource secRuleDenySSH 'Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules@2024-10-01' = {
+resource secRuleDenySSH 'Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules@2024-07-01' = {
   parent: secRuleCollection
   name: 'deny-ssh-from-internet'
   kind: 'Custom'
@@ -231,7 +236,7 @@ resource secRuleDenySSH 'Microsoft.Network/networkManagers/securityAdminConfigur
 }
 
 @description('3d. Deny SMB (445/TCP) from Internet to all spokes.')
-resource secRuleDenySMB 'Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules@2024-10-01' = {
+resource secRuleDenySMB 'Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules@2024-07-01' = {
   parent: secRuleCollection
   name: 'deny-smb-from-internet'
   kind: 'Custom'
@@ -249,7 +254,7 @@ resource secRuleDenySMB 'Microsoft.Network/networkManagers/securityAdminConfigur
 }
 
 @description('3e. Deny WinRM (5985/5986 TCP) from Internet to all spokes.')
-resource secRuleDenyWinRM 'Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules@2024-10-01' = {
+resource secRuleDenyWinRM 'Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules@2024-07-01' = {
   parent: secRuleCollection
   name: 'deny-winrm-from-internet'
   kind: 'Custom'
