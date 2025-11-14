@@ -34,11 +34,12 @@ param spokeResourceGroupName string
 @allowed([ 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28 ])
 param vnetSizeInBits int = 24
 
-@description('Tag name used by policy to auto-onboard VNets to the Spokes Network Group (optional).')
-param includeTagName string = 'avnm-group'
 
 @description('Tag value used by policy to auto-onboard VNets to the Spokes Network Group (optional).')
 param includeTagValue string = 'spokes'
+
+@description('Tag name used by policy to auto-onboard VNets to the Spokes Network Group (optional).')
+param includeTagName string = 'avnm-group'
 
 // === MODULES ===
 module spokeInfra 'modules/spoke-infra-deploy.bicep' = {
@@ -49,8 +50,8 @@ module spokeInfra 'modules/spoke-infra-deploy.bicep' = {
     environment: environment
     ipamPoolId: ipamPoolId
     vnetSizeInBits: vnetSizeInBits
-    includeTagName: includeTagName
     includeTagValue: includeTagValue
+    includeTagName: includeTagName
     spokeRgName: spokeResourceGroupName
   }
 }

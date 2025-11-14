@@ -26,11 +26,13 @@ param ipamPoolId string
 @description('The size of the VNet as a CIDR bit (e.g., 24).')
 param vnetSizeInBits int
 
-@description('Tag name used by policy to auto-onboard spokes (optional).')
-param includeTagName string = 'avnm-group'
 
 @description('Tag value used by policy to auto-onboard spokes (optional).')
 param includeTagValue string = 'spokes'
+
+@description('Tag name used by policy to auto-onboard spokes (optional).')
+param includeTagName string = 'avnm-group'
+
 
 @description('The name of the spoke Resource Group to create or use if it exists.')
 param spokeRgName string
@@ -78,5 +80,6 @@ module vnetDeploy 'vnet-from-ipam.bicep' = {
     teamName: teamName
     environment: environment
     includeTagValue: includeTagValue
+    includeTagName: includeTagName
   }
 }

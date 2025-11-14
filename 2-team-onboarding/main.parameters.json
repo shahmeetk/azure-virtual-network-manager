@@ -5,8 +5,9 @@
     "teamName": { "value": "test" },
     "location": { "value": "eastus" },
     "environment": { "value": "dev" },
-    "ipamPoolId": { "value": "/subscriptions/b572f84c-ea09-465a-a35b-b4b1ee9a7152/resourceGroups/avnm2-test/providers/Microsoft.Network/networkManagers/test-avnm/ipamPools/test-ipam-pool" },
+    "ipamPoolId": { "value": "/subscriptions/b572f84c-ea09-465a-a35b-b4b1ee9a7152/resourceGroups/avnm3-test/providers/Microsoft.Network/networkManagers/test-avnm/ipamPools/test-ipam-pool" },
     "vnetSizeInBits": { "value": 24 },
+    "includeTagName": { "value": "avnm-group" },
     "includeTagValue": { "value": "spokes" },
     "spokeResourceGroupName": { "value": "rg-test-dev-net" }
   }

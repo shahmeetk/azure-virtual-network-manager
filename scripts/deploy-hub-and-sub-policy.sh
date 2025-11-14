@@ -71,7 +71,6 @@ az deployment group create \
   --name "$HUB_DEP_NAME" \
   --template-file 1-platform-deployment/hub/main.bicep \
   --parameters @"$PARAMS_FILE" \
-  --parameters policySubscriptionId="$SUB" \
   --verbose
 
 echo "Step 2: Extracting spokes network group ID from deployment outputs..."
@@ -96,6 +95,18 @@ echo "Validation passed. The ID belongs to resource group '$RG'."
 
 
 echo "Step 3: Deploying AVNM policy at the '$SCOPE_TYPE' scope..."
+
+# Read tag parameters from the same hub parameters file (fallback to defaults)
+INCLUDE_TAG_NAME_FROM_FILE=$(jq -r '.parameters.includeTagName.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
+INCLUDE_TAG_VALUE_FROM_FILE=$(jq -r '.parameters.includeTagValue.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
+if [[ -n "$INCLUDE_TAG_NAME_FROM_FILE" ]]; then INCLUDE_TAG_NAME="$INCLUDE_TAG_NAME_FROM_FILE"; fi
+if [[ -n "$INCLUDE_TAG_VALUE_FROM_FILE" ]]; then INCLUDE_TAG_VALUE="$INCLUDE_TAG_VALUE_FROM_FILE"; fi
+
+# Validate tag parameters
+if [[ -z "$INCLUDE_TAG_NAME" || -z "$INCLUDE_TAG_VALUE" ]]; then
+  echo "Error: includeTagName/includeTagValue are missing. Set them in $PARAMS_FILE or via defaults in script." >&2
+  exit 1
+fi
 
 # Proactively remove any existing custom policy definition/assignment to avoid stale linked scopes
 if [[ "$SCOPE_TYPE" == "ManagementGroup" ]]; then

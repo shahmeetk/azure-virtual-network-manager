@@ -31,6 +31,9 @@ param environment string
 @description('Tag value used by policy to auto-onboard spokes (default spokes).')
 param includeTagValue string = 'spokes'
 
+@description('Tag name used by policy to auto-onboard spokes (default avnm-group).')
+param includeTagName string = 'avnm-group'
+
 // === RESOURCES ===
 
 @description('Deploy the Virtual Network using IPAM for address allocation.')
@@ -41,7 +44,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-10-01' = {
     Team: teamName
     Environment: environment
     // Tag used by AVNM subscription policy to auto-onboard this VNet to Spokes NG
-    'avnm-group': includeTagValue
+    '${includeTagName}': includeTagValue
   }
   properties: {
     // We DO NOT define 'addressPrefixes'
