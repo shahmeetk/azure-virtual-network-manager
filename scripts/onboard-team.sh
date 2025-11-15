@@ -2,7 +2,7 @@
 # Orchestrator: Team Onboarding (Dual mode)
 # - managementGroup: Create Team MG + subscriptions, then Spoke VNets from IPAM
 # - subscription   : Create RGs + Spoke VNets in current subscription from IPAM
-# - Reads parameters from 2-team-onboarding/*.parameters.json (or a custom file)
+# - Reads parameters from infrastructure/spoke-team-onboarding/*.parameters.json (or a custom file)
 # - Mirrors style and UX of deploy-hub-and-sub-policy.sh
 
 set -euo pipefail
@@ -24,7 +24,7 @@ Description:
 Required:
   --subscription        Subscription to set az context
   --location            Azure region to store the deployment record (e.g., eastus)
-  --params              Path to JSON parameters file (e.g., 2-team-onboarding/main.parameters.json)
+  --params              Path to JSON parameters file (e.g., infrastructure/spoke-team-onboarding/main.parameters.json)
 
 Optional:
   --what-if             Run what-if instead of an actual deployment
@@ -33,7 +33,7 @@ Optional:
 Examples:
   $0 --subscription 00000000-0000-0000-0000-000000000000 \\
      --location eastus \\
-     --params 2-team-onboarding/main.parameters.json
+     --params infrastructure/spoke-team-onboarding/main.parameters.json
 EOF
 }
 

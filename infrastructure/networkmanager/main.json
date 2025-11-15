@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "5681243172154876769"
+      "templateHash": "13027200253911964826"
     }
   },
   "parameters": {
@@ -63,6 +63,20 @@
         "description": "Optional: Internal supernet (e.g., IPAM pool CIDR). When provided with firewallPrivateIpAddress, forces spoke-to-spoke via firewall."
       }
     },
+    "includeTagName": {
+      "type": "string",
+      "defaultValue": "avnm-group",
+      "metadata": {
+        "description": "Tag name used by policy to auto-onboard spokes (default avnm-group)."
+      }
+    },
+    "includeTagValue": {
+      "type": "string",
+      "defaultValue": "spokes",
+      "metadata": {
+        "description": "Tag value used by policy to auto-onboard spokes (default spokes)."
+      }
+    },
     "useHubGateway": {
       "type": "bool",
       "defaultValue": true,
@@ -82,6 +96,27 @@
       "defaultValue": true,
       "metadata": {
         "description": "Connectivity: delete pre-existing manual peerings when applying."
+      }
+    },
+    "policyScopeType": {
+      "type": "string",
+      "defaultValue": "Subscription",
+      "metadata": {
+        "description": "Policy scope type. Use \"Subscription\" (default) or \"ManagementGroup\". This template does not use it directly but accepts it so the parameter file can drive scripts."
+      }
+    },
+    "policySubscriptionId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Subscription ID to use when policyScopeType = \"Subscription\". Accepted for parameter file completeness; not used directly by this template."
+      }
+    },
+    "policyManagementGroupId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Management Group ID to use when policyScopeType = \"ManagementGroup\". Accepted for parameter file completeness; not used directly by this template."
       }
     }
   },

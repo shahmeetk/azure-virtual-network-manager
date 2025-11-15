@@ -9,11 +9,11 @@
       "value": "eastus"
     },
     "hubVnetId": {
-      "value": "/subscriptions/b572f84c-ea09-465a-a35b-b4b1ee9a7152/resourceGroups/avnm3-test/providers/Microsoft.Network/virtualNetworks/vnet-avnm3-test"
+      "value": "/subscriptions/2c87d8e3-098f-43d2-83fe-8263a03bb909/resourceGroups/avnm-test/providers/Microsoft.Network/virtualNetworks/vnet-avnm-test"
     },
     "subscriptionIds": {
       "value": [
-        "b572f84c-ea09-465a-a35b-b4b1ee9a7152"
+        "2c87d8e3-098f-43d2-83fe-8263a03bb909","adb86055-a749-4b22-8d8b-4421b424256c"
       ]
     },
     "ipamPoolPrefix": {
@@ -28,9 +28,6 @@
     "internalSupernet": {
       "value": "172.16.128.0/17"
     },
-    "enableSubscriptionPolicy": {
-      "value": true
-    },
     "includeTagName": {
       "value": "avnm-group"
     },
@@ -41,7 +38,7 @@
       "value": "Subscription"
     },
     "policySubscriptionId": {
-      "value": "b572f84c-ea09-465a-a35b-b4b1ee9a7152"
+      "value": "2c87d8e3-098f-43d2-83fe-8263a03bb909"
     },
     "policyManagementGroupId": {
       "value": ""

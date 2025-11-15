@@ -33,7 +33,6 @@ param includeTagValue string = 'spokes'
 @description('Tag name used by policy to auto-onboard spokes (optional).')
 param includeTagName string = 'avnm-group'
 
-
 @description('The name of the spoke Resource Group to create or use if it exists.')
 param spokeRgName string
 

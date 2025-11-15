@@ -29,13 +29,16 @@ param ipamPoolName string = '${prefix}-ipam-pool'
 @description('If true, this deployment will manage (create/update) the IPAM pool. If false, the template will not attempt to modify it (useful when a pool already exists with a different prefix).')
 param manageIpamPool bool = true
 
+
 // === VARIABLES ===
 var avnmName = '${prefix}-avnm'
 var hubNetworkGroupName = '${prefix}-ng-hub-static'
 var spokesNetworkGroupName = '${prefix}-ng-spokes-dynamic'
 var subscriptionResourceIds = [for sid in subscriptionIds: startsWith(sid, '/subscriptions/') ? sid : '/subscriptions/${sid}']
 
+
 // === RESOURCES ===
+
 
 @description('1. Deploy the Azure Virtual Network Manager instance.')
 resource avnm 'Microsoft.Network/networkManagers@2024-10-01' = {

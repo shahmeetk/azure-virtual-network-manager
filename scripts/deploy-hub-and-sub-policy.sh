@@ -69,7 +69,7 @@ echo "Step 1: Deploying AVNM hub resources to resource group '$RG'..."
 az deployment group create \
   --resource-group "$RG" \
   --name "$HUB_DEP_NAME" \
-  --template-file 1-platform-deployment/hub/main.bicep \
+  --template-file infrastructure/networkmanager/main.bicep \
   --parameters @"$PARAMS_FILE" \
   --verbose
 
@@ -130,14 +130,14 @@ if [[ "$SCOPE_TYPE" == "ManagementGroup" ]]; then
     --name "avnm-mg-policy-$(date +%Y%m%d-%H%M%S)" \
     --location "$LOCATION" \
     --management-group-id "$MG_ID" \
-    --template-file 1-platform-deployment/hub/modules/mg-avnm-policy.bicep \
+    --template-file infrastructure/networkmanager/modules/mg-avnm-policy.bicep \
     --parameters "${POLICY_PARAMS[@]}" \
     --verbose
 else # Default to Subscription
   az deployment sub create \
     --name "avnm-sub-policy-$(date +%Y%m%d-%H%M%S)" \
     --location "$LOCATION" \
-    --template-file 1-platform-deployment/hub/modules/avnm-policy.bicep \
+    --template-file infrastructure/networkmanager/modules/avnm-policy.bicep \
     --parameters "${POLICY_PARAMS[@]}" \
     --verbose
 fi

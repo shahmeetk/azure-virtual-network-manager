@@ -3,7 +3,7 @@
   MODULE:   vnet-from-ipam.bicep
   SCOPE:    Resource Group
   DESC:     Deploys a single VNet, drawing its CIDR
-            from the central AVNM IPAM Pool. [21, 20]
+            from the central AVNM IPAM Pool.
   ====================================================================
 */
 
@@ -20,7 +20,7 @@ param vnetName string
 param ipamPoolId string
 
 @description('The number of IP addresses for the VNet (e.g., "256").')
-param numberOfIpAddresses string // [19, 20]
+param numberOfIpAddresses string
 
 @description('Tag: Team name.')
 param teamName string
@@ -43,16 +43,11 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-10-01' = {
   tags: {
     Team: teamName
     Environment: environment
-    // Tag used by AVNM subscription policy to auto-onboard this VNet to Spokes NG
     '${includeTagName}': includeTagValue
   }
   properties: {
-    // We DO NOT define 'addressPrefixes'
-    // Instead, AVNM IPAM will allocate a non-overlapping prefix. [19, 20, 22]
-    // Use json() to supply a payload the service accepts, while bypassing strict type validation
-    // in the Bicep type definition for AddressSpace.
     addressSpace: json('{"ipamPoolPrefixAllocations":[{"pool":{"id":"${ipamPoolId}"},"numberOfIpAddresses":"${numberOfIpAddresses}"}]}')
-    subnets: [] // Empty subnets array for initial deployment
+    subnets: []
   }
 }
 

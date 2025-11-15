@@ -1,6 +1,6 @@
 # Hub Deployment Parameters (main.parameters.json)
 
-Version: 1.1.0
+Version: 1.1.1
 
 ## Required Parameters
 - `prefix`: Short identifier for naming resources (e.g., `test`).
@@ -21,4 +21,4 @@ Version: 1.1.0
 - Policy deploy script reads `includeTagName` and `includeTagValue` from this file.
 
 ## Change Log
-- 1.1.0: Added docs; parameter usage clarified; tag params used by scripts.
+- 1.1.1: Updated paths to `infrastructure/networkmanager`.

@@ -1,0 +1,356 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.38.33.27573",
+      "templateHash": "977394114835645421"
+    }
+  },
+  "parameters": {
+    "teamName": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 24,
+      "metadata": {
+        "description": "Short, unique name for the new team (e.g., \"TeamA\"). Used for naming."
+      }
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "The Azure region to deploy the spoke VNet resources into."
+      }
+    },
+    "environment": {
+      "type": "string",
+      "metadata": {
+        "description": "Environment name (e.g., dev, uat, prod)."
+      }
+    },
+    "ipamPoolId": {
+      "type": "securestring",
+      "minLength": 10,
+      "metadata": {
+        "description": "The Resource ID of the AVNM IPAM Pool (from hub deployment output)."
+      }
+    },
+    "spokeResourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the spoke Resource Group to create or use if it already exists."
+      }
+    },
+    "vnetSizeInBits": {
+      "type": "int",
+      "defaultValue": 24,
+      "allowedValues": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28
+      ],
+      "metadata": {
+        "description": "The size of the VNet as a CIDR bit (e.g., 24 for a /24)."
+      }
+    },
+    "includeTagValue": {
+      "type": "string",
+      "defaultValue": "spokes",
+      "metadata": {
+        "description": "Tag value used by policy to auto-onboard VNets to the Spokes Network Group (optional)."
+      }
+    },
+    "includeTagName": {
+      "type": "string",
+      "defaultValue": "avnm-group",
+      "metadata": {
+        "description": "Tag name used by policy to auto-onboard VNets to the Spokes Network Group (optional)."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('deploy-spoke-{0}-{1}', parameters('teamName'), parameters('environment'))]",
+      "location": "[deployment().location]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "teamName": {
+            "value": "[parameters('teamName')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "ipamPoolId": {
+            "value": "[parameters('ipamPoolId')]"
+          },
+          "vnetSizeInBits": {
+            "value": "[parameters('vnetSizeInBits')]"
+          },
+          "includeTagValue": {
+            "value": "[parameters('includeTagValue')]"
+          },
+          "includeTagName": {
+            "value": "[parameters('includeTagName')]"
+          },
+          "spokeRgName": {
+            "value": "[parameters('spokeResourceGroupName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "8406768417724138251"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "The Azure region to deploy resources into."
+              }
+            },
+            "teamName": {
+              "type": "string",
+              "metadata": {
+                "description": "Short name for the team."
+              }
+            },
+            "environment": {
+              "type": "string",
+              "metadata": {
+                "description": "The environment (dev, uat, prod)."
+              }
+            },
+            "ipamPoolId": {
+              "type": "string",
+              "metadata": {
+                "description": "The Resource ID of the AVNM IPAM Pool."
+              }
+            },
+            "vnetSizeInBits": {
+              "type": "int",
+              "metadata": {
+                "description": "The size of the VNet as a CIDR bit (e.g., 24)."
+              }
+            },
+            "includeTagValue": {
+              "type": "string",
+              "defaultValue": "spokes",
+              "metadata": {
+                "description": "Tag value used by policy to auto-onboard spokes (optional)."
+              }
+            },
+            "includeTagName": {
+              "type": "string",
+              "defaultValue": "avnm-group",
+              "metadata": {
+                "description": "Tag name used by policy to auto-onboard spokes (optional)."
+              }
+            },
+            "spokeRgName": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the spoke Resource Group to create or use if it exists."
+              }
+            }
+          },
+          "variables": {
+            "vnetName": "[format('vnet-{0}-{1}', parameters('spokeRgName'), parameters('environment'))]",
+            "vnetSizeAsNumberString": "[if(equals(parameters('vnetSizeInBits'), 16), '65536', if(equals(parameters('vnetSizeInBits'), 17), '32768', if(equals(parameters('vnetSizeInBits'), 18), '16384', if(equals(parameters('vnetSizeInBits'), 19), '8192', if(equals(parameters('vnetSizeInBits'), 20), '4096', if(equals(parameters('vnetSizeInBits'), 21), '2048', if(equals(parameters('vnetSizeInBits'), 22), '1024', if(equals(parameters('vnetSizeInBits'), 23), '512', if(equals(parameters('vnetSizeInBits'), 24), '256', if(equals(parameters('vnetSizeInBits'), 25), '128', if(equals(parameters('vnetSizeInBits'), 26), '64', if(equals(parameters('vnetSizeInBits'), 27), '32', if(equals(parameters('vnetSizeInBits'), 28), '16', '256')))))))))))))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Resources/resourceGroups",
+              "apiVersion": "2024-03-01",
+              "name": "[parameters('spokeRgName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "Team": "[parameters('teamName')]",
+                "Environment": "[parameters('environment')]"
+              },
+              "metadata": {
+                "description": "1. Create the Resource Group for the spoke network."
+              }
+            },
+            {
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2025-04-01",
+              "name": "[format('deploy-{0}', variables('vnetName'))]",
+              "resourceGroup": "[parameters('spokeRgName')]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "location": {
+                    "value": "[parameters('location')]"
+                  },
+                  "vnetName": {
+                    "value": "[variables('vnetName')]"
+                  },
+                  "ipamPoolId": {
+                    "value": "[parameters('ipamPoolId')]"
+                  },
+                  "numberOfIpAddresses": {
+                    "value": "[variables('vnetSizeAsNumberString')]"
+                  },
+                  "teamName": {
+                    "value": "[parameters('teamName')]"
+                  },
+                  "environment": {
+                    "value": "[parameters('environment')]"
+                  },
+                  "includeTagValue": {
+                    "value": "[parameters('includeTagValue')]"
+                  },
+                  "includeTagName": {
+                    "value": "[parameters('includeTagName')]"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.38.33.27573",
+                      "templateHash": "2209946113123788787"
+                    }
+                  },
+                  "parameters": {
+                    "location": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "The Azure region."
+                      }
+                    },
+                    "vnetName": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "The name for the new Virtual Network."
+                      }
+                    },
+                    "ipamPoolId": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "The Resource ID of the AVNM IPAM Pool."
+                      }
+                    },
+                    "numberOfIpAddresses": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "The number of IP addresses for the VNet (e.g., \"256\")."
+                      }
+                    },
+                    "teamName": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Tag: Team name."
+                      }
+                    },
+                    "environment": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Tag: Environment name."
+                      }
+                    },
+                    "includeTagValue": {
+                      "type": "string",
+                      "defaultValue": "spokes",
+                      "metadata": {
+                        "description": "Tag value used by policy to auto-onboard spokes (default spokes)."
+                      }
+                    },
+                    "includeTagName": {
+                      "type": "string",
+                      "defaultValue": "avnm-group",
+                      "metadata": {
+                        "description": "Tag name used by policy to auto-onboard spokes (default avnm-group)."
+                      }
+                    }
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Network/virtualNetworks",
+                      "apiVersion": "2024-10-01",
+                      "name": "[parameters('vnetName')]",
+                      "location": "[parameters('location')]",
+                      "tags": {
+                        "Team": "[parameters('teamName')]",
+                        "Environment": "[parameters('environment')]",
+                        "[format('{0}', parameters('includeTagName'))]": "[parameters('includeTagValue')]"
+                      },
+                      "properties": {
+                        "addressSpace": "[json(format('{{\"ipamPoolPrefixAllocations\":[{{\"pool\":{{\"id\":\"{0}\"}},\"numberOfIpAddresses\":\"{1}\"}}]}}', parameters('ipamPoolId'), parameters('numberOfIpAddresses')))]",
+                        "subnets": []
+                      },
+                      "metadata": {
+                        "description": "Deploy the Virtual Network using IPAM for address allocation."
+                      }
+                    }
+                  ],
+                  "outputs": {
+                    "vnetId": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "The ID of the newly created VNet."
+                      },
+                      "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+                    },
+                    "allocatedAddressPrefixes": {
+                      "type": "array",
+                      "metadata": {
+                        "description": "The (dynamically allocated) address prefixes of the new VNet (array)."
+                      },
+                      "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')), '2024-10-01').addressSpace.addressPrefixes]"
+                    }
+                  }
+                }
+              },
+              "dependsOn": [
+                "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('spokeRgName'))]"
+              ],
+              "metadata": {
+                "description": "2. Deploy the VNet using the IPAM-enabled module."
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "onboardingMode": {
+      "type": "string",
+      "metadata": {
+        "description": "Echo the deployment mode used."
+      },
+      "value": "subscription"
+    }
+  }
+}
