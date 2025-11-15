@@ -15,8 +15,8 @@ param avnmName string
 @description('The full Resource ID of the Hub VNet that acts as the hub in the connectivity configuration.')
 param hubVnetId string
 
-@description('The Resource ID of the Spokes Network Group.')
-param spokesNetworkGroupId string
+@description('The Resource IDs of the Spokes Network Groups (Dev, Test, Prod).')
+param spokesNetworkGroupIds array
 
 @description('Whether to deploy the Connectivity Configuration. Set true only after backend acceptance is verified.')
 param deployConnectivity bool = false
@@ -75,14 +75,12 @@ resource connConfig 'Microsoft.Network/networkManagers/connectivityConfiguration
         resourceId: hubVnetId
       }
     ]
-    appliesToGroups: [
-      {
-        networkGroupId: spokesNetworkGroupId
-        groupConnectivity: 'None'
-        useHubGateway: useHubGateway ? 'True' : 'False'
-        isGlobal: isGlobalConnectivity ? 'True' : 'False'
-      }
-    ]
+    appliesToGroups: [for ngId in spokesNetworkGroupIds: {
+      networkGroupId: ngId
+      groupConnectivity: 'None'
+      useHubGateway: useHubGateway ? 'True' : 'False'
+      isGlobal: isGlobalConnectivity ? 'True' : 'False'
+    }]
     deleteExistingPeering: deleteExistingPeering ? 'True' : 'False'
     isGlobal: isGlobalConnectivity ? 'True' : 'False'
     connectivityCapabilities: {
@@ -117,11 +115,9 @@ resource routeRuleCollection 'Microsoft.Network/networkManagers/routingConfigura
   parent: routeConfig
   name: routeRuleCollectionName
   properties: {
-    appliesTo: [
-      {
-        networkGroupId: spokesNetworkGroupId
-      }
-    ]
+    appliesTo: [for ngId in spokesNetworkGroupIds: {
+      networkGroupId: ngId
+    }]
   }
 }
 
@@ -177,11 +173,9 @@ resource secRuleCollection 'Microsoft.Network/networkManagers/securityAdminConfi
   parent: secConfig
   name: securityAdminRuleCollectionName
   properties: {
-    appliesToGroups: [
-      {
-        networkGroupId: spokesNetworkGroupId
-      }
-    ]
+    appliesToGroups: [for ngId in spokesNetworkGroupIds: {
+      networkGroupId: ngId
+    }]
   }
 }
 

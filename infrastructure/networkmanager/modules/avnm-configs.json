@@ -1,0 +1,458 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.38.33.27573",
+      "templateHash": "11794684365396766942"
+    }
+  },
+  "parameters": {
+    "avnmName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the AVNM instance (from avnm-core.bicep)."
+      }
+    },
+    "hubVnetId": {
+      "type": "string",
+      "metadata": {
+        "description": "The full Resource ID of the Hub VNet that acts as the hub in the connectivity configuration."
+      }
+    },
+    "spokesNetworkGroupIds": {
+      "type": "array",
+      "metadata": {
+        "description": "The Resource IDs of the Spokes Network Groups (Dev, Test, Prod)."
+      }
+    },
+    "deployConnectivity": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Whether to deploy the Connectivity Configuration. Set true only after backend acceptance is verified."
+      }
+    },
+    "useHubGateway": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "If true, spokes use the hub gateway for transit (recommended for hub-and-spoke)."
+      }
+    },
+    "isGlobalConnectivity": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "If true, configuration is global across regions. Keep false for single-region deployments."
+      }
+    },
+    "deleteExistingPeering": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "If true, delete any existing manual peerings when applying connectivity."
+      }
+    },
+    "firewallPrivateIpAddress": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "The private IP address of the existing Hub Firewall. Optional; when empty, routing resources are skipped."
+      }
+    },
+    "internalSupernet": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "The internal supernet (IPAM pool) to force-route to the firewall. Optional; when empty, routing resources are skipped."
+      }
+    },
+    "connectivityConfigName": {
+      "type": "string",
+      "defaultValue": "hub-and-spoke-connectivity",
+      "metadata": {
+        "description": "Name for the connectivity configuration."
+      }
+    },
+    "routingConfigName": {
+      "type": "string",
+      "defaultValue": "rc-force-all-traffic-to-firewall",
+      "metadata": {
+        "description": "Name for the routing configuration."
+      }
+    },
+    "routeRuleCollectionName": {
+      "type": "string",
+      "defaultValue": "rc-collection-default",
+      "metadata": {
+        "description": "Name for the routing rule collection."
+      }
+    },
+    "securityAdminConfigName": {
+      "type": "string",
+      "defaultValue": "sac-global-baseline",
+      "metadata": {
+        "description": "Name for the security admin configuration."
+      }
+    },
+    "securityAdminRuleCollectionName": {
+      "type": "string",
+      "defaultValue": "sc-baseline-rules",
+      "metadata": {
+        "description": "Name for the security admin rule collection."
+      }
+    }
+  },
+  "variables": {
+    "enableRouting": "[and(not(empty(parameters('firewallPrivateIpAddress'))), not(empty(parameters('internalSupernet'))))]"
+  },
+  "resources": [
+    {
+      "condition": "[parameters('deployConnectivity')]",
+      "type": "Microsoft.Network/networkManagers/connectivityConfigurations",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}', parameters('avnmName'), parameters('connectivityConfigName'))]",
+      "properties": {
+        "copy": [
+          {
+            "name": "appliesToGroups",
+            "count": "[length(parameters('spokesNetworkGroupIds'))]",
+            "input": {
+              "networkGroupId": "[parameters('spokesNetworkGroupIds')[copyIndex('appliesToGroups')]]",
+              "groupConnectivity": "None",
+              "useHubGateway": "[if(parameters('useHubGateway'), 'True', 'False')]",
+              "isGlobal": "[if(parameters('isGlobalConnectivity'), 'True', 'False')]"
+            }
+          }
+        ],
+        "connectivityTopology": "HubAndSpoke",
+        "hubs": [
+          {
+            "resourceType": "Microsoft.Network/virtualNetworks",
+            "resourceId": "[parameters('hubVnetId')]"
+          }
+        ],
+        "deleteExistingPeering": "[if(parameters('deleteExistingPeering'), 'True', 'False')]",
+        "isGlobal": "[if(parameters('isGlobalConnectivity'), 'True', 'False')]",
+        "connectivityCapabilities": {
+          "connectedGroupPrivateEndpointsScale": "Standard",
+          "connectedGroupAddressOverlap": "Allowed",
+          "peeringEnforcement": "Unenforced"
+        }
+      },
+      "metadata": {
+        "description": "1. Connectivity Configuration (Hub-and-Spoke)."
+      }
+    },
+    {
+      "condition": "[variables('enableRouting')]",
+      "type": "Microsoft.Network/networkManagers/routingConfigurations",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}', parameters('avnmName'), parameters('routingConfigName'))]",
+      "properties": {
+        "description": "Forces all spoke traffic (Internet and Spoke-to-Spoke) to the hub firewall."
+      },
+      "metadata": {
+        "description": "2. Routing Configuration (Force Traffic to Firewall)."
+      }
+    },
+    {
+      "condition": "[variables('enableRouting')]",
+      "type": "Microsoft.Network/networkManagers/routingConfigurations/ruleCollections",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}/{2}', parameters('avnmName'), parameters('routingConfigName'), parameters('routeRuleCollectionName'))]",
+      "properties": {
+        "copy": [
+          {
+            "name": "appliesTo",
+            "count": "[length(parameters('spokesNetworkGroupIds'))]",
+            "input": {
+              "networkGroupId": "[parameters('spokesNetworkGroupIds')[copyIndex('appliesTo')]]"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkManagers/routingConfigurations', parameters('avnmName'), parameters('routingConfigName'))]"
+      ],
+      "metadata": {
+        "description": "2a. Define the Rule Collection for the Routing Configuration."
+      }
+    },
+    {
+      "condition": "[variables('enableRouting')]",
+      "type": "Microsoft.Network/networkManagers/routingConfigurations/ruleCollections/rules",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), parameters('routingConfigName'), parameters('routeRuleCollectionName'), 'rule-default-to-firewall')]",
+      "properties": {
+        "description": "Route 0.0.0.0/0 to Hub Firewall",
+        "destination": {
+          "destinationAddress": "0.0.0.0/0",
+          "type": "AddressPrefix"
+        },
+        "nextHop": {
+          "nextHopType": "VirtualAppliance",
+          "nextHopAddress": "[parameters('firewallPrivateIpAddress')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkManagers/routingConfigurations/ruleCollections', parameters('avnmName'), parameters('routingConfigName'), parameters('routeRuleCollectionName'))]"
+      ],
+      "metadata": {
+        "description": "2b. Rule to force Internet-bound traffic to the firewall."
+      }
+    },
+    {
+      "condition": "[variables('enableRouting')]",
+      "type": "Microsoft.Network/networkManagers/routingConfigurations/ruleCollections/rules",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), parameters('routingConfigName'), parameters('routeRuleCollectionName'), 'rule-internal-to-firewall')]",
+      "properties": {
+        "description": "Route all internal spoke-to-spoke traffic to Hub Firewall",
+        "destination": {
+          "destinationAddress": "[parameters('internalSupernet')]",
+          "type": "AddressPrefix"
+        },
+        "nextHop": {
+          "nextHopType": "VirtualAppliance",
+          "nextHopAddress": "[parameters('firewallPrivateIpAddress')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkManagers/routingConfigurations/ruleCollections', parameters('avnmName'), parameters('routingConfigName'), parameters('routeRuleCollectionName'))]"
+      ],
+      "metadata": {
+        "description": "2c. Rule to force Spoke-to-Spoke traffic to the firewall."
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkManagers/securityAdminConfigurations",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}', parameters('avnmName'), parameters('securityAdminConfigName'))]",
+      "properties": {
+        "description": "Enforces global security rules that override NSGs.",
+        "applyOnNetworkIntentPolicyBasedServices": []
+      },
+      "metadata": {
+        "description": "3. Security Admin Configuration (Baseline Governance)."
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}/{2}', parameters('avnmName'), parameters('securityAdminConfigName'), parameters('securityAdminRuleCollectionName'))]",
+      "properties": {
+        "copy": [
+          {
+            "name": "appliesToGroups",
+            "count": "[length(parameters('spokesNetworkGroupIds'))]",
+            "input": {
+              "networkGroupId": "[parameters('spokesNetworkGroupIds')[copyIndex('appliesToGroups')]]"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations', parameters('avnmName'), parameters('securityAdminConfigName'))]"
+      ],
+      "metadata": {
+        "description": "3a. Define the Security Rule Collection."
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), parameters('securityAdminConfigName'), parameters('securityAdminRuleCollectionName'), 'deny-rdp-from-internet')]",
+      "kind": "Custom",
+      "properties": {
+        "description": "Deny RDP from Internet to all spokes",
+        "priority": 100,
+        "protocol": "Tcp",
+        "access": "Deny",
+        "direction": "Inbound",
+        "sources": [
+          {
+            "addressPrefix": "Internet",
+            "addressPrefixType": "ServiceTag"
+          }
+        ],
+        "sourcePortRanges": [
+          "0-65535"
+        ],
+        "destinations": [
+          {
+            "addressPrefix": "*",
+            "addressPrefixType": "IPPrefix"
+          }
+        ],
+        "destinationPortRanges": [
+          "3389"
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), parameters('securityAdminConfigName'), parameters('securityAdminRuleCollectionName'))]"
+      ],
+      "metadata": {
+        "description": "3b. Example Rule: Deny RDP from Internet to all spokes."
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), parameters('securityAdminConfigName'), parameters('securityAdminRuleCollectionName'), 'deny-ssh-from-internet')]",
+      "kind": "Custom",
+      "properties": {
+        "description": "Deny SSH from Internet to all spokes",
+        "priority": 101,
+        "protocol": "Tcp",
+        "access": "Deny",
+        "direction": "Inbound",
+        "sources": [
+          {
+            "addressPrefix": "Internet",
+            "addressPrefixType": "ServiceTag"
+          }
+        ],
+        "sourcePortRanges": [
+          "0-65535"
+        ],
+        "destinations": [
+          {
+            "addressPrefix": "*",
+            "addressPrefixType": "IPPrefix"
+          }
+        ],
+        "destinationPortRanges": [
+          "22"
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), parameters('securityAdminConfigName'), parameters('securityAdminRuleCollectionName'))]"
+      ],
+      "metadata": {
+        "description": "3c. Deny SSH (22/TCP) from Internet to all spokes."
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), parameters('securityAdminConfigName'), parameters('securityAdminRuleCollectionName'), 'deny-smb-from-internet')]",
+      "kind": "Custom",
+      "properties": {
+        "description": "Deny SMB from Internet to all spokes",
+        "priority": 102,
+        "protocol": "Tcp",
+        "access": "Deny",
+        "direction": "Inbound",
+        "sources": [
+          {
+            "addressPrefix": "Internet",
+            "addressPrefixType": "ServiceTag"
+          }
+        ],
+        "sourcePortRanges": [
+          "0-65535"
+        ],
+        "destinations": [
+          {
+            "addressPrefix": "*",
+            "addressPrefixType": "IPPrefix"
+          }
+        ],
+        "destinationPortRanges": [
+          "445"
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), parameters('securityAdminConfigName'), parameters('securityAdminRuleCollectionName'))]"
+      ],
+      "metadata": {
+        "description": "3d. Deny SMB (445/TCP) from Internet to all spokes."
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}/{2}/{3}', parameters('avnmName'), parameters('securityAdminConfigName'), parameters('securityAdminRuleCollectionName'), 'deny-winrm-from-internet')]",
+      "kind": "Custom",
+      "properties": {
+        "description": "Deny WinRM from Internet to all spokes",
+        "priority": 103,
+        "protocol": "Tcp",
+        "access": "Deny",
+        "direction": "Inbound",
+        "sources": [
+          {
+            "addressPrefix": "Internet",
+            "addressPrefixType": "ServiceTag"
+          }
+        ],
+        "sourcePortRanges": [
+          "0-65535"
+        ],
+        "destinations": [
+          {
+            "addressPrefix": "*",
+            "addressPrefixType": "IPPrefix"
+          }
+        ],
+        "destinationPortRanges": [
+          "5985",
+          "5986"
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), parameters('securityAdminConfigName'), parameters('securityAdminRuleCollectionName'))]"
+      ],
+      "metadata": {
+        "description": "3e. Deny WinRM (5985/5986 TCP) from Internet to all spokes."
+      }
+    }
+  ],
+  "outputs": {
+    "connectivityConfigurationId": {
+      "type": "string",
+      "metadata": {
+        "description": "Connectivity configuration ID for commit operations."
+      },
+      "value": "[if(parameters('deployConnectivity'), resourceId('Microsoft.Network/networkManagers/connectivityConfigurations', parameters('avnmName'), parameters('connectivityConfigName')), '')]"
+    },
+    "routingConfigurationId": {
+      "type": "string",
+      "metadata": {
+        "description": "Routing configuration ID for commit operations (if enabled)."
+      },
+      "value": "[if(variables('enableRouting'), resourceId('Microsoft.Network/networkManagers/routingConfigurations', parameters('avnmName'), parameters('routingConfigName')), '')]"
+    },
+    "securityAdminConfigurationId": {
+      "type": "string",
+      "metadata": {
+        "description": "Security admin configuration ID for commit operations."
+      },
+      "value": "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations', parameters('avnmName'), parameters('securityAdminConfigName'))]"
+    },
+    "securityAdminConfigId": {
+      "type": "string",
+      "metadata": {
+        "description": "Security Admin Configuration ID."
+      },
+      "value": "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations', parameters('avnmName'), parameters('securityAdminConfigName'))]"
+    },
+    "securityAdminRuleCollectionId": {
+      "type": "string",
+      "metadata": {
+        "description": "Security Admin Rule Collection ID."
+      },
+      "value": "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections', parameters('avnmName'), parameters('securityAdminConfigName'), parameters('securityAdminRuleCollectionName'))]"
+    },
+    "securityAdminRuleId": {
+      "type": "string",
+      "metadata": {
+        "description": "Security Admin Rule ID (example: deny RDP)."
+      },
+      "value": "[resourceId('Microsoft.Network/networkManagers/securityAdminConfigurations/ruleCollections/rules', parameters('avnmName'), parameters('securityAdminConfigName'), parameters('securityAdminRuleCollectionName'), 'deny-rdp-from-internet')]"
+    }
+  }
+}

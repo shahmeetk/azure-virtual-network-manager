@@ -1,0 +1,209 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.38.33.27573",
+      "templateHash": "11901132697050605822"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "The Azure region for all resources."
+      }
+    },
+    "prefix": {
+      "type": "string",
+      "metadata": {
+        "description": "A short, unique prefix for naming all resources."
+      }
+    },
+    "hubVnetId": {
+      "type": "string",
+      "metadata": {
+        "description": "The full Resource ID of the existing Hub VNet."
+      }
+    },
+    "hubSubscriptionId": {
+      "type": "string",
+      "metadata": {
+        "description": "Hub subscription ID"
+      }
+    },
+    "managedScopeType": {
+      "type": "string",
+      "defaultValue": "Subscription",
+      "allowedValues": [
+        "Subscription",
+        "ManagementGroup"
+      ],
+      "metadata": {
+        "description": "Managed scope type for spokes"
+      }
+    },
+    "managedScopeId": {
+      "type": "string",
+      "metadata": {
+        "description": "Managed scope ID (subscription GUID or management group ID)"
+      }
+    },
+    "ipamPoolPrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "The static CIDR block for the entire IPAM pool."
+      }
+    },
+    "ipamPoolName": {
+      "type": "string",
+      "defaultValue": "[format('{0}-ipam-pool', parameters('prefix'))]",
+      "metadata": {
+        "description": "Name of the IPAM pool to create or reference. Use a stable name to ensure a single pool (e.g., \"<prefix>-ipam-pool\")."
+      }
+    },
+    "manageIpamPool": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "If true, this deployment will manage (create/update) the IPAM pool. If false, the template will not attempt to modify it (useful when a pool already exists with a different prefix)."
+      }
+    }
+  },
+  "variables": {
+    "avnmName": "[format('{0}-avnm', parameters('prefix'))]",
+    "hubNetworkGroupName": "[format('{0}-ng-hub-static', parameters('prefix'))]",
+    "hubSubscriptionResourceId": "[if(startsWith(parameters('hubSubscriptionId'), '/subscriptions/'), parameters('hubSubscriptionId'), format('/subscriptions/{0}', parameters('hubSubscriptionId')))]",
+    "managedSubscriptionResourceId": "[if(equals(parameters('managedScopeType'), 'Subscription'), if(startsWith(parameters('managedScopeId'), '/subscriptions/'), parameters('managedScopeId'), format('/subscriptions/{0}', parameters('managedScopeId'))), '')]",
+    "managedManagementGroupResourceId": "[if(equals(parameters('managedScopeType'), 'ManagementGroup'), if(startsWith(parameters('managedScopeId'), '/providers/Microsoft.Management/managementGroups/'), parameters('managedScopeId'), format('/providers/Microsoft.Management/managementGroups/{0}', parameters('managedScopeId'))), '')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkManagers",
+      "apiVersion": "2024-10-01",
+      "name": "[variables('avnmName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "description": "Central AVNM for enterprise connectivity and security.",
+        "networkManagerScopeAccesses": [
+          "Connectivity",
+          "SecurityAdmin",
+          "Routing"
+        ],
+        "networkManagerScopes": {
+          "subscriptions": "[if(equals(parameters('managedScopeType'), 'Subscription'), createArray(variables('hubSubscriptionResourceId'), variables('managedSubscriptionResourceId')), createArray(variables('hubSubscriptionResourceId')))]",
+          "managementGroups": "[if(equals(parameters('managedScopeType'), 'ManagementGroup'), createArray(variables('managedManagementGroupResourceId')), createArray())]"
+        }
+      },
+      "metadata": {
+        "description": "1. Deploy the Azure Virtual Network Manager instance."
+      }
+    },
+    {
+      "condition": "[parameters('manageIpamPool')]",
+      "type": "Microsoft.Network/networkManagers/ipamPools",
+      "apiVersion": "2024-10-01",
+      "name": "[format('{0}/{1}', variables('avnmName'), parameters('ipamPoolName'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "description": "Global IPAM pool for all spokes.",
+        "addressPrefixes": [
+          "[parameters('ipamPoolPrefix')]"
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkManagers', variables('avnmName'))]"
+      ],
+      "metadata": {
+        "description": "2. Deploy the IPAM Pool as a child of the AVNM (conditionally)."
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkManagers/networkGroups",
+      "apiVersion": "2024-10-01",
+      "name": "[format('{0}/{1}', variables('avnmName'), variables('hubNetworkGroupName'))]",
+      "properties": {
+        "description": "Static group containing the Hub VNet."
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkManagers', variables('avnmName'))]"
+      ],
+      "metadata": {
+        "description": "4. Create the Network Group for the Hub VNet (Static Membership)."
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkManagers/networkGroups",
+      "apiVersion": "2024-10-01",
+      "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-dev', parameters('prefix')))]",
+      "properties": {
+        "description": "Dynamic group for Development spokes."
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkManagers', variables('avnmName'))]"
+      ],
+      "metadata": {
+        "description": "5a. Create the Network Group for Dev Spokes"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkManagers/networkGroups",
+      "apiVersion": "2024-10-01",
+      "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-test', parameters('prefix')))]",
+      "properties": {
+        "description": "Dynamic group for Test spokes."
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkManagers', variables('avnmName'))]"
+      ],
+      "metadata": {
+        "description": "5b. Create the Network Group for Test Spokes"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkManagers/networkGroups",
+      "apiVersion": "2024-10-01",
+      "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-prod', parameters('prefix')))]",
+      "properties": {
+        "description": "Dynamic group for Production spokes."
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkManagers', variables('avnmName'))]"
+      ],
+      "metadata": {
+        "description": "5c. Create the Network Group for Prod Spokes"
+      }
+    }
+  ],
+  "outputs": {
+    "avnmId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/networkManagers', variables('avnmName'))]"
+    },
+    "avnmName": {
+      "type": "string",
+      "value": "[variables('avnmName')]"
+    },
+    "ipamPoolId": {
+      "type": "string",
+      "value": "[if(parameters('manageIpamPool'), resourceId('Microsoft.Network/networkManagers/ipamPools', variables('avnmName'), parameters('ipamPoolName')), resourceId('Microsoft.Network/networkManagers/ipamPools', variables('avnmName'), parameters('ipamPoolName')))]"
+    },
+    "hubNetworkGroupId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), variables('hubNetworkGroupName'))]"
+    },
+    "spokesNetworkGroupDevId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-dev', parameters('prefix')))]"
+    },
+    "spokesNetworkGroupTestId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-test', parameters('prefix')))]"
+    },
+    "spokesNetworkGroupProdId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-prod', parameters('prefix')))]"
+    }
+  }
+}

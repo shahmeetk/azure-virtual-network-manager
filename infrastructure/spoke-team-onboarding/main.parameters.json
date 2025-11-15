@@ -2,6 +2,7 @@
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
+    "subscriptionId": { "value": "adb86055-a749-4b22-8d8b-4421b424256c" },
     "teamName": { "value": "test" },
     "location": { "value": "eastus" },
     "environment": { "value": "dev" },
@@ -9,6 +10,10 @@
     "vnetSizeInBits": { "value": 24 },
     "includeTagName": { "value": "avnm-group" },
     "includeTagValue": { "value": "spokes" },
-    "spokeResourceGroupName": { "value": "rg-test-dev-net" }
+    "spokeResourceGroupName": { "value": "rg-test-dev-net" },
+    "descriptionTag": { "value": "AVNM Resource Deployment" },
+    "createdDateTag": { "value": "2025-11-15" },
+    "additionalTags": { "value": { "Owner": "TeamA" } },
+    "virtualNetworkAddressPrefixes": { "value": [24] }
   }
 }

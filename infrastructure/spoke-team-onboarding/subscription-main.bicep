@@ -40,6 +40,10 @@ param includeTagValue string = 'spokes'
 
 @description('Tag name used by policy to auto-onboard VNets to the Spokes Network Group (optional).')
 param includeTagName string = 'avnm-group'
+param descriptionTag string
+param createdDateTag string
+param additionalTags object = {}
+param virtualNetworkAddressPrefixes array = []
 
 // === MODULES ===
 module spokeInfra 'modules/spoke-infra-deploy.bicep' = {
@@ -52,6 +56,10 @@ module spokeInfra 'modules/spoke-infra-deploy.bicep' = {
     vnetSizeInBits: vnetSizeInBits
     includeTagValue: includeTagValue
     includeTagName: includeTagName
+    descriptionTag: descriptionTag
+    createdDateTag: createdDateTag
+    additionalTags: additionalTags
+    virtualNetworkAddressPrefixes: virtualNetworkAddressPrefixes
     spokeRgName: spokeResourceGroupName
   }
 }

@@ -11,6 +11,7 @@ INCLUDE_TAG_NAME="avnm-group"
 INCLUDE_TAG_VALUE="spokes"
 SCOPE_TYPE="Subscription"
 MG_ID=""
+HUB_VNET_NAME=""
 
 # --- Functions ---
 usage() {
@@ -29,6 +30,7 @@ Arguments:
   --resource-group <RG>           (Required) The resource group for the hub deployment.
   --location <LOCATION>           (Required) The Azure region for the deployment.
   --params <HUB_PARAMS_JSON>      (Required) Path to the parameters file for the hub deployment.
+  --hub-vnet-name <VNET>          (Optional) Hub VNet name; if missing, will create via IPAM.
   --scope-type <TYPE>             (Optional) The scope for the policy assignment. Can be 'Subscription' or 'ManagementGroup'. Defaults to 'Subscription'.
   --management-group-id <MG_ID>   (Optional) The management group ID, required if --scope-type is 'ManagementGroup'.
   -h, --help                      Show this help message.
@@ -44,6 +46,7 @@ while [[ $# -gt 0 ]]; do
     --params) PARAMS_FILE="$2"; shift 2;;
     --scope-type) SCOPE_TYPE="$2"; shift 2;;
     --management-group-id) MG_ID="$2"; shift 2;;
+    --hub-vnet-name) HUB_VNET_NAME="$2"; shift 2;;
     -h|--help) usage; exit 0;;
     *) echo "Unknown option: $1" >&2; usage; exit 1;;
   esac
@@ -63,35 +66,64 @@ fi
 # --- Main Execution ---
 az account set --subscription "$SUB"
 
+# Ensure resource group exists
+if ! az group exists --name "$RG" >/dev/null; then
+  az group create --name "$RG" --location "$LOCATION" >/dev/null
+fi
+
 HUB_DEP_NAME="hub-deploy-$(date +%Y%m%d-%H%M%S)"
 
 echo "Step 1: Deploying AVNM hub resources to resource group '$RG'..."
+if [[ ! -f "$PARAMS_FILE" ]]; then
+  echo "Warning: parameters file '$PARAMS_FILE' not found. Falling back to infrastructure/networkmanager/main.parameters.json" >&2
+  PARAMS_FILE="infrastructure/networkmanager/main.parameters.json"
+fi
+
+HUB_RG_FROM_FILE=$(jq -r '.parameters.hubResourceGroupName.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
+HUB_VNET_NAME_FROM_FILE=$(jq -r '.parameters.hubVnetName.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
+if [[ -n "$HUB_RG_FROM_FILE" ]]; then RG="$HUB_RG_FROM_FILE"; fi
+if [[ -z "$HUB_VNET_NAME" && -n "$HUB_VNET_NAME_FROM_FILE" ]]; then HUB_VNET_NAME="$HUB_VNET_NAME_FROM_FILE"; fi
+
+VNET_EXISTS=false
+if [[ -n "$HUB_VNET_NAME" ]]; then
+  if az network vnet show -g "$RG" -n "$HUB_VNET_NAME" >/dev/null 2>&1; then
+    VNET_EXISTS=true
+  fi
+fi
+
+EXTRA_PARAMS=()
+if [[ "$VNET_EXISTS" == false ]]; then
+  EXTRA_PARAMS+=("createHubVnetIfMissing=true")
+fi
+
 az deployment group create \
   --resource-group "$RG" \
   --name "$HUB_DEP_NAME" \
   --template-file infrastructure/networkmanager/main.bicep \
-  --parameters @"$PARAMS_FILE" \
+  --parameters @"$PARAMS_FILE" ${EXTRA_PARAMS[@]} \
   --verbose
 
 echo "Step 2: Extracting spokes network group ID from deployment outputs..."
-SPOKES_NG_ID=$(az deployment group show --resource-group "$RG" --name "$HUB_DEP_NAME" --query "properties.outputs.spokesNetworkGroupId.value" -o tsv)
+DEV_NG_ID=$(az deployment group show --resource-group "$RG" --name "$HUB_DEP_NAME" --query "properties.outputs.spokesNetworkGroupDevId.value" -o tsv)
+TEST_NG_ID=$(az deployment group show --resource-group "$RG" --name "$HUB_DEP_NAME" --query "properties.outputs.spokesNetworkGroupTestId.value" -o tsv)
+PROD_NG_ID=$(az deployment group show --resource-group "$RG" --name "$HUB_DEP_NAME" --query "properties.outputs.spokesNetworkGroupProdId.value" -o tsv)
 
-if [[ -z "$SPOKES_NG_ID" ]]; then
-  echo "Error: Could not extract spokesNetworkGroupId from deployment outputs. Please check the deployment '$HUB_DEP_NAME' in resource group '$RG'." >&2
+if [[ -z "$DEV_NG_ID" || -z "$TEST_NG_ID" || -z "$PROD_NG_ID" ]]; then
+  echo "Error: Could not extract environment network group IDs from deployment outputs. Please check the deployment '$HUB_DEP_NAME' in resource group '$RG'." >&2
   exit 1
 fi
-echo "Successfully extracted Spokes Network Group ID: $SPOKES_NG_ID"
+echo "Extracted NG IDs: dev=$DEV_NG_ID test=$TEST_NG_ID prod=$PROD_NG_ID"
 
 # --- CRITICAL VALIDATION STEP ---
 echo "Step 2a: Validating that the extracted ID contains the correct resource group name..."
-if [[ ! "$SPOKES_NG_ID" == *"/resourceGroups/$RG/"* ]]; then
+if [[ ! "$DEV_NG_ID" == *"/resourceGroups/$RG/"* || ! "$TEST_NG_ID" == *"/resourceGroups/$RG/"* || ! "$PROD_NG_ID" == *"/resourceGroups/$RG/"* ]]; then
   echo "FATAL ERROR: The extracted Spokes Network Group ID does not belong to the correct resource group!" >&2
   echo "  Expected Resource Group: $RG" >&2
-  echo "  Found ID: $SPOKES_NG_ID" >&2
+  echo "  Found IDs: $DEV_NG_ID | $TEST_NG_ID | $PROD_NG_ID" >&2
   echo "  This indicates that the Azure CLI is returning a stale output from a previous deployment. Please try clearing your Azure CLI cache or re-running the script." >&2
   exit 1
 fi
-echo "Validation passed. The ID belongs to resource group '$RG'."
+echo "Validation passed. All IDs belong to resource group '$RG'."
 
 
 echo "Step 3: Deploying AVNM policy at the '$SCOPE_TYPE' scope..."
@@ -108,6 +140,29 @@ if [[ -z "$INCLUDE_TAG_NAME" || -z "$INCLUDE_TAG_VALUE" ]]; then
   exit 1
 fi
 
+# Validate required new parameters for template
+HUB_SUB_ID_FROM_FILE=$(jq -r '.parameters.hubSubscriptionId.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
+MANAGED_SCOPE_TYPE_FROM_FILE=$(jq -r '.parameters.managedScopeType.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
+MANAGED_SCOPE_ID_FROM_FILE=$(jq -r '.parameters.managedScopeId.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
+if [[ -z "$HUB_SUB_ID_FROM_FILE" ]]; then
+  echo "Error: hubSubscriptionId is missing in $PARAMS_FILE." >&2
+  exit 1
+fi
+
+# Align scope type with parameters when provided
+if [[ -n "$MANAGED_SCOPE_TYPE_FROM_FILE" ]]; then
+  SCOPE_TYPE="$MANAGED_SCOPE_TYPE_FROM_FILE"
+fi
+if [[ "$SCOPE_TYPE" == "ManagementGroup" ]]; then
+  if [[ -z "$MG_ID" && -n "$MANAGED_SCOPE_ID_FROM_FILE" ]]; then
+    MG_ID="$MANAGED_SCOPE_ID_FROM_FILE"
+  fi
+  if [[ -z "$MG_ID" ]]; then
+    echo "Error: Management Group scope requested but management group ID is missing (provide --management-group-id or managedScopeId in params)." >&2
+    exit 1
+  fi
+fi
+
 # Proactively remove any existing custom policy definition/assignment to avoid stale linked scopes
 if [[ "$SCOPE_TYPE" == "ManagementGroup" ]]; then
   # Delete MG-scope assignment/definition if present (ignore errors)
@@ -119,27 +174,35 @@ else
   az policy definition delete --name avnm-spoke-tagging-policy 2>/dev/null || true
 fi
 
-POLICY_PARAMS=(
-  "spokesNetworkGroupId=$SPOKES_NG_ID"
-  "includeTagName=$INCLUDE_TAG_NAME"
-  "includeTagValue=$INCLUDE_TAG_VALUE"
-)
+apply_policy_for_env() {
+  local NG_ID="$1"; local ENV_VAL="$2"
+  local POLICY_PARAMS=(
+    "spokesNetworkGroupId=$NG_ID"
+    "includeTagName=$INCLUDE_TAG_NAME"
+    "includeTagValue=$ENV_VAL"
+  )
+  if [[ "$SCOPE_TYPE" == "ManagementGroup" ]]; then
+    az deployment mg create \
+      --name "avnm-mg-policy-${ENV_VAL}-$(date +%Y%m%d-%H%M%S)" \
+      --location "$LOCATION" \
+      --management-group-id "$MG_ID" \
+      --template-file infrastructure/networkmanager/modules/mg-avnm-policy.bicep \
+      --parameters "${POLICY_PARAMS[@]}" \
+      --verbose
+  else
+    az deployment sub create \
+      --name "avnm-sub-policy-${ENV_VAL}-$(date +%Y%m%d-%H%M%S)" \
+      --location "$LOCATION" \
+      --template-file infrastructure/networkmanager/modules/avnm-policy.bicep \
+      --parameters "${POLICY_PARAMS[@]}" \
+      --verbose
+  fi
+}
 
-if [[ "$SCOPE_TYPE" == "ManagementGroup" ]]; then
-  az deployment mg create \
-    --name "avnm-mg-policy-$(date +%Y%m%d-%H%M%S)" \
-    --location "$LOCATION" \
-    --management-group-id "$MG_ID" \
-    --template-file infrastructure/networkmanager/modules/mg-avnm-policy.bicep \
-    --parameters "${POLICY_PARAMS[@]}" \
-    --verbose
-else # Default to Subscription
-  az deployment sub create \
-    --name "avnm-sub-policy-$(date +%Y%m%d-%H%M%S)" \
-    --location "$LOCATION" \
-    --template-file infrastructure/networkmanager/modules/avnm-policy.bicep \
-    --parameters "${POLICY_PARAMS[@]}" \
-    --verbose
-fi
+# Apply policy for Development, Test, Production using extracted NG IDs
+INCLUDE_TAG_NAME=${INCLUDE_TAG_NAME:-environment}
+apply_policy_for_env "$DEV_NG_ID" "Development"
+apply_policy_for_env "$TEST_NG_ID" "Test"
+apply_policy_for_env "$PROD_NG_ID" "Production"
 
 echo "Done."

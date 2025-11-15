@@ -21,8 +21,8 @@ You can use the provided scripts to validate, test (what‑if or real), and auto
 - Package manager: None (CLI tools only)
 
 Entry points:
-- Platform hub: `azure-enterprise-bicep/1-platform-deployment/hub/main.bicep` (targetScope: `resourceGroup`)
-- Team onboarding: `azure-enterprise-bicep/2-team-onboarding/subscription-main.bicep` (targetScope: `subscription`)
+- Platform hub: `infrastructure/networkmanager/main.bicep` (targetScope: `resourceGroup`)
+- Team onboarding: `infrastructure/spoke-team-onboarding/subscription-main.bicep` (targetScope: `subscription`)
 
 Automation scripts (under `azure-enterprise-bicep/scripts/`):
 - `validate-bicep.sh` — compile/validate and basic static checks
@@ -34,27 +34,28 @@ Automation scripts (under `azure-enterprise-bicep/scripts/`):
 ## Project Structure
 
 ```
-azure-enterprise-bicep/
-├── 1-platform-deployment/
-│   └── hub/
-│       ├── main.bicep
+azure-virtual-network-manager/
+├── infrastructure/
+│   ├── networkmanager/
+│   │   ├── main.bicep
+│   │   ├── main.parameters.json
+│   │   └── modules/
+│   │       ├── avnm-core.bicep
+│   │       ├── avnm-policy.bicep
+│   │       ├── mg-avnm-policy.bicep
+│   │       ├── avnm-configs.bicep
+│   │       └── vnet-from-ipam.bicep
+│   └── spoke-team-onboarding/
+│       ├── subscription-main.bicep
 │       ├── main.parameters.json
 │       └── modules/
-│           ├── avnm-core.bicep
-│           ├── avnm-policy.bicep
-│           ├── avnm-configs.bicep
-│           └── (optional) security/monitoring/cost/backup modules
-├── 2-team-onboarding/
-│   ├── subscription-main.bicep
-│   ├── main.parameters.json
-│   └── modules/
-│       ├── spoke-infra-deploy.bicep
-│       └── vnet-from-ipam.bicep
+│           ├── spoke-infra-deploy.bicep
+│           └── vnet-from-ipam.bicep
 └── scripts/
     ├── validate-bicep.sh
     ├── test-deployment.sh
     ├── ci-cd-pipeline.sh
-    └── backup-restore.sh
+    └── deploy-hub-and-sub-policy.sh
 ```
 
 Note: The project has been streamlined. Legacy management‑group onboarding and deprecated modules/scripts have been removed.
@@ -98,7 +99,7 @@ cd azure-enterprise-bicep
 
 ## Deploy: Platform Hub (resourceGroup scope)
 
-Template: `1-platform-deployment/hub/main.bicep`
+Template: `infrastructure/networkmanager/main.bicep`
 
 What this deploys (minimal, subscription-scope AVNM):
 - Azure Virtual Network Manager (AVNM) scoped to your subscription
@@ -139,8 +140,8 @@ JSON
 az deployment group create \
   --name platform-hub-deployment \
   --resource-group platform-hub-rg \
-  --template-file 1-platform-deployment/hub/main.bicep \
-  --parameters @hub.parameters.json
+  --template-file infrastructure/networkmanager/main.bicep \
+  --parameters @infrastructure/networkmanager/main.parameters.json
 ```
 
 ### Alternative: Deploy via Azure Portal (Custom template)
@@ -207,7 +208,7 @@ az deployment mg create \
 
 ## Deploy: Team Onboarding (tenant scope)
 
-Template: `2-team-onboarding/main.bicep`
+Template: `infrastructure/spoke-team-onboarding/subscription-main.bicep`
 
 Key parameters:
 - `teamName` (string)
@@ -597,9 +598,6 @@ azure-enterprise-bicep/
 - **Documentation**: Comprehensive code comments
 - **Testing**: Adequate test coverage
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 

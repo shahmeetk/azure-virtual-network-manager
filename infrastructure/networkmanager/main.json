@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "13027200253911964826"
+      "templateHash": "304496897990388137"
     }
   },
   "parameters": {
@@ -24,16 +24,61 @@
         "description": "A short, unique prefix for naming all central platform resources."
       }
     },
-    "hubVnetId": {
-      "type": "securestring",
+    "hubResourceGroupName": {
+      "type": "string",
       "metadata": {
-        "description": "The full Resource ID of the existing Hub VNet."
+        "description": "Hub Resource Group name"
       }
     },
-    "subscriptionIds": {
-      "type": "array",
+    "hubVnetName": {
+      "type": "string",
       "metadata": {
-        "description": "List of subscription IDs or subscription resource IDs that define the AVNM management scope."
+        "description": "Hub VNet name"
+      }
+    },
+    "hubVnetSizeInBits": {
+      "type": "int",
+      "defaultValue": 20,
+      "allowedValues": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28
+      ],
+      "metadata": {
+        "description": "Hub VNet size in bits (e.g., 20 for /20)"
+      }
+    },
+    "hubSubscriptionId": {
+      "type": "string",
+      "metadata": {
+        "description": "Hub subscription ID"
+      }
+    },
+    "managedScopeType": {
+      "type": "string",
+      "defaultValue": "Subscription",
+      "allowedValues": [
+        "Subscription",
+        "ManagementGroup"
+      ],
+      "metadata": {
+        "description": "Managed scope type for spokes"
+      }
+    },
+    "managedScopeId": {
+      "type": "string",
+      "metadata": {
+        "description": "Managed scope ID (subscription GUID or management group ID)"
       }
     },
     "ipamPoolPrefix": {
@@ -77,6 +122,36 @@
         "description": "Tag value used by policy to auto-onboard spokes (default spokes)."
       }
     },
+    "environment": {
+      "type": "string",
+      "allowedValues": [
+        "Development",
+        "Test",
+        "Production"
+      ],
+      "metadata": {
+        "description": "Deployment environment"
+      }
+    },
+    "descriptionTag": {
+      "type": "string",
+      "metadata": {
+        "description": "Description tag value"
+      }
+    },
+    "createdDateTag": {
+      "type": "string",
+      "metadata": {
+        "description": "Created Date tag value (yyyy-mm-dd)"
+      }
+    },
+    "additionalTags": {
+      "type": "object",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Additional tags object"
+      }
+    },
     "useHubGateway": {
       "type": "bool",
       "defaultValue": true,
@@ -98,29 +173,32 @@
         "description": "Connectivity: delete pre-existing manual peerings when applying."
       }
     },
-    "policyScopeType": {
-      "type": "string",
-      "defaultValue": "Subscription",
+    "createHubVnetIfMissing": {
+      "type": "bool",
+      "defaultValue": false,
       "metadata": {
-        "description": "Policy scope type. Use \"Subscription\" (default) or \"ManagementGroup\". This template does not use it directly but accepts it so the parameter file can drive scripts."
-      }
-    },
-    "policySubscriptionId": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Subscription ID to use when policyScopeType = \"Subscription\". Accepted for parameter file completeness; not used directly by this template."
-      }
-    },
-    "policyManagementGroupId": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Management Group ID to use when policyScopeType = \"ManagementGroup\". Accepted for parameter file completeness; not used directly by this template."
+        "description": "Create Hub VNet if missing (controlled by script)"
       }
     }
   },
+  "variables": {
+    "hubVnetIpCount": "[if(equals(parameters('hubVnetSizeInBits'), 16), '65536', if(equals(parameters('hubVnetSizeInBits'), 17), '32768', if(equals(parameters('hubVnetSizeInBits'), 18), '16384', if(equals(parameters('hubVnetSizeInBits'), 19), '8192', if(equals(parameters('hubVnetSizeInBits'), 20), '4096', if(equals(parameters('hubVnetSizeInBits'), 21), '2048', if(equals(parameters('hubVnetSizeInBits'), 22), '1024', if(equals(parameters('hubVnetSizeInBits'), 23), '512', if(equals(parameters('hubVnetSizeInBits'), 24), '256', if(equals(parameters('hubVnetSizeInBits'), 25), '128', if(equals(parameters('hubVnetSizeInBits'), 26), '64', if(equals(parameters('hubVnetSizeInBits'), 27), '32', if(equals(parameters('hubVnetSizeInBits'), 28), '16', '4096')))))))))))))]",
+    "resolvedHubVnetId": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('hubResourceGroupName')), 'Microsoft.Network/virtualNetworks', parameters('hubVnetName'))]",
+    "avnmName": "[format('{0}-avnm', parameters('prefix'))]"
+  },
   "resources": [
+    {
+      "type": "Microsoft.Network/networkManagers/networkGroups/staticMembers",
+      "apiVersion": "2024-10-01",
+      "name": "[format('{0}/{1}/{2}', variables('avnmName'), format('{0}-ng-hub-static', parameters('prefix')), 'hub-vnet-member')]",
+      "properties": {
+        "resourceId": "[variables('resolvedHubVnetId')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core')]",
+        "[resourceId('Microsoft.Resources/deployments', 'create-hub-vnet')]"
+      ]
+    },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
@@ -137,14 +215,20 @@
           "prefix": {
             "value": "[parameters('prefix')]"
           },
-          "subscriptionIds": {
-            "value": "[parameters('subscriptionIds')]"
+          "hubSubscriptionId": {
+            "value": "[parameters('hubSubscriptionId')]"
+          },
+          "managedScopeType": {
+            "value": "[parameters('managedScopeType')]"
+          },
+          "managedScopeId": {
+            "value": "[parameters('managedScopeId')]"
           },
           "ipamPoolPrefix": {
             "value": "[parameters('ipamPoolPrefix')]"
           },
           "hubVnetId": {
-            "value": "[parameters('hubVnetId')]"
+            "value": "[variables('resolvedHubVnetId')]"
           }
         },
         "template": {
@@ -154,7 +238,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "13128978261233254887"
+              "templateHash": "11901132697050605822"
             }
           },
           "parameters": {
@@ -176,10 +260,27 @@
                 "description": "The full Resource ID of the existing Hub VNet."
               }
             },
-            "subscriptionIds": {
-              "type": "array",
+            "hubSubscriptionId": {
+              "type": "string",
               "metadata": {
-                "description": "List of subscription IDs or subscription resource IDs to scope AVNM to (e.g., \"<subId>\" or \"/subscriptions/<subId>\")."
+                "description": "Hub subscription ID"
+              }
+            },
+            "managedScopeType": {
+              "type": "string",
+              "defaultValue": "Subscription",
+              "allowedValues": [
+                "Subscription",
+                "ManagementGroup"
+              ],
+              "metadata": {
+                "description": "Managed scope type for spokes"
+              }
+            },
+            "managedScopeId": {
+              "type": "string",
+              "metadata": {
+                "description": "Managed scope ID (subscription GUID or management group ID)"
               }
             },
             "ipamPoolPrefix": {
@@ -204,16 +305,11 @@
             }
           },
           "variables": {
-            "copy": [
-              {
-                "name": "subscriptionResourceIds",
-                "count": "[length(parameters('subscriptionIds'))]",
-                "input": "[if(startsWith(parameters('subscriptionIds')[copyIndex('subscriptionResourceIds')], '/subscriptions/'), parameters('subscriptionIds')[copyIndex('subscriptionResourceIds')], format('/subscriptions/{0}', parameters('subscriptionIds')[copyIndex('subscriptionResourceIds')]))]"
-              }
-            ],
             "avnmName": "[format('{0}-avnm', parameters('prefix'))]",
             "hubNetworkGroupName": "[format('{0}-ng-hub-static', parameters('prefix'))]",
-            "spokesNetworkGroupName": "[format('{0}-ng-spokes-dynamic', parameters('prefix'))]"
+            "hubSubscriptionResourceId": "[if(startsWith(parameters('hubSubscriptionId'), '/subscriptions/'), parameters('hubSubscriptionId'), format('/subscriptions/{0}', parameters('hubSubscriptionId')))]",
+            "managedSubscriptionResourceId": "[if(equals(parameters('managedScopeType'), 'Subscription'), if(startsWith(parameters('managedScopeId'), '/subscriptions/'), parameters('managedScopeId'), format('/subscriptions/{0}', parameters('managedScopeId'))), '')]",
+            "managedManagementGroupResourceId": "[if(equals(parameters('managedScopeType'), 'ManagementGroup'), if(startsWith(parameters('managedScopeId'), '/providers/Microsoft.Management/managementGroups/'), parameters('managedScopeId'), format('/providers/Microsoft.Management/managementGroups/{0}', parameters('managedScopeId'))), '')]"
           },
           "resources": [
             {
@@ -229,7 +325,8 @@
                   "Routing"
                 ],
                 "networkManagerScopes": {
-                  "subscriptions": "[variables('subscriptionResourceIds')]"
+                  "subscriptions": "[if(equals(parameters('managedScopeType'), 'Subscription'), createArray(variables('hubSubscriptionResourceId'), variables('managedSubscriptionResourceId')), createArray(variables('hubSubscriptionResourceId')))]",
+                  "managementGroups": "[if(equals(parameters('managedScopeType'), 'ManagementGroup'), createArray(variables('managedManagementGroupResourceId')), createArray())]"
                 }
               },
               "metadata": {
@@ -270,31 +367,45 @@
               }
             },
             {
-              "type": "Microsoft.Network/networkManagers/networkGroups/staticMembers",
-              "apiVersion": "2024-10-01",
-              "name": "[format('{0}/{1}/{2}', variables('avnmName'), variables('hubNetworkGroupName'), 'hub-vnet-member')]",
-              "properties": {
-                "resourceId": "[parameters('hubVnetId')]"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), variables('hubNetworkGroupName'))]"
-              ],
-              "metadata": {
-                "description": "4a. Add the Hub VNet as a static member."
-              }
-            },
-            {
               "type": "Microsoft.Network/networkManagers/networkGroups",
               "apiVersion": "2024-10-01",
-              "name": "[format('{0}/{1}', variables('avnmName'), variables('spokesNetworkGroupName'))]",
+              "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-dev', parameters('prefix')))]",
               "properties": {
-                "description": "Dynamic group for all tagged spoke VNets."
+                "description": "Dynamic group for Development spokes."
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Network/networkManagers', variables('avnmName'))]"
               ],
               "metadata": {
-                "description": "5. Create the Network Group for all Spokes (Dynamic Membership)."
+                "description": "5a. Create the Network Group for Dev Spokes"
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/networkGroups",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-test', parameters('prefix')))]",
+              "properties": {
+                "description": "Dynamic group for Test spokes."
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers', variables('avnmName'))]"
+              ],
+              "metadata": {
+                "description": "5b. Create the Network Group for Test Spokes"
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkManagers/networkGroups",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-prod', parameters('prefix')))]",
+              "properties": {
+                "description": "Dynamic group for Production spokes."
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkManagers', variables('avnmName'))]"
+              ],
+              "metadata": {
+                "description": "5c. Create the Network Group for Prod Spokes"
               }
             }
           ],
@@ -315,13 +426,17 @@
               "type": "string",
               "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), variables('hubNetworkGroupName'))]"
             },
-            "hubStaticMemberId": {
+            "spokesNetworkGroupDevId": {
               "type": "string",
-              "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups/staticMembers', variables('avnmName'), variables('hubNetworkGroupName'), 'hub-vnet-member')]"
+              "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-dev', parameters('prefix')))]"
             },
-            "spokesNetworkGroupId": {
+            "spokesNetworkGroupTestId": {
               "type": "string",
-              "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), variables('spokesNetworkGroupName'))]"
+              "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-test', parameters('prefix')))]"
+            },
+            "spokesNetworkGroupProdId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-prod', parameters('prefix')))]"
             }
           }
         }
@@ -344,10 +459,14 @@
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.avnmName.value]"
           },
           "hubVnetId": {
-            "value": "[parameters('hubVnetId')]"
+            "value": "[variables('resolvedHubVnetId')]"
           },
-          "spokesNetworkGroupId": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.spokesNetworkGroupId.value]"
+          "spokesNetworkGroupIds": {
+            "value": [
+              "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.spokesNetworkGroupDevId.value]",
+              "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.spokesNetworkGroupTestId.value]",
+              "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.spokesNetworkGroupProdId.value]"
+            ]
           },
           "deployConnectivity": {
             "value": "[parameters('deployConnectivity')]"
@@ -375,7 +494,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "8344704659536770122"
+              "templateHash": "11794684365396766942"
             }
           },
           "parameters": {
@@ -391,10 +510,10 @@
                 "description": "The full Resource ID of the Hub VNet that acts as the hub in the connectivity configuration."
               }
             },
-            "spokesNetworkGroupId": {
-              "type": "string",
+            "spokesNetworkGroupIds": {
+              "type": "array",
               "metadata": {
-                "description": "The Resource ID of the Spokes Network Group."
+                "description": "The Resource IDs of the Spokes Network Groups (Dev, Test, Prod)."
               }
             },
             "deployConnectivity": {
@@ -485,19 +604,23 @@
               "apiVersion": "2024-07-01",
               "name": "[format('{0}/{1}', parameters('avnmName'), parameters('connectivityConfigName'))]",
               "properties": {
+                "copy": [
+                  {
+                    "name": "appliesToGroups",
+                    "count": "[length(parameters('spokesNetworkGroupIds'))]",
+                    "input": {
+                      "networkGroupId": "[parameters('spokesNetworkGroupIds')[copyIndex('appliesToGroups')]]",
+                      "groupConnectivity": "None",
+                      "useHubGateway": "[if(parameters('useHubGateway'), 'True', 'False')]",
+                      "isGlobal": "[if(parameters('isGlobalConnectivity'), 'True', 'False')]"
+                    }
+                  }
+                ],
                 "connectivityTopology": "HubAndSpoke",
                 "hubs": [
                   {
                     "resourceType": "Microsoft.Network/virtualNetworks",
                     "resourceId": "[parameters('hubVnetId')]"
-                  }
-                ],
-                "appliesToGroups": [
-                  {
-                    "networkGroupId": "[parameters('spokesNetworkGroupId')]",
-                    "groupConnectivity": "None",
-                    "useHubGateway": "[if(parameters('useHubGateway'), 'True', 'False')]",
-                    "isGlobal": "[if(parameters('isGlobalConnectivity'), 'True', 'False')]"
                   }
                 ],
                 "deleteExistingPeering": "[if(parameters('deleteExistingPeering'), 'True', 'False')]",
@@ -530,9 +653,13 @@
               "apiVersion": "2024-07-01",
               "name": "[format('{0}/{1}/{2}', parameters('avnmName'), parameters('routingConfigName'), parameters('routeRuleCollectionName'))]",
               "properties": {
-                "appliesTo": [
+                "copy": [
                   {
-                    "networkGroupId": "[parameters('spokesNetworkGroupId')]"
+                    "name": "appliesTo",
+                    "count": "[length(parameters('spokesNetworkGroupIds'))]",
+                    "input": {
+                      "networkGroupId": "[parameters('spokesNetworkGroupIds')[copyIndex('appliesTo')]]"
+                    }
                   }
                 ]
               },
@@ -606,9 +733,13 @@
               "apiVersion": "2024-07-01",
               "name": "[format('{0}/{1}/{2}', parameters('avnmName'), parameters('securityAdminConfigName'), parameters('securityAdminRuleCollectionName'))]",
               "properties": {
-                "appliesToGroups": [
+                "copy": [
                   {
-                    "networkGroupId": "[parameters('spokesNetworkGroupId')]"
+                    "name": "appliesToGroups",
+                    "count": "[length(parameters('spokesNetworkGroupIds'))]",
+                    "input": {
+                      "networkGroupId": "[parameters('spokesNetworkGroupIds')[copyIndex('appliesToGroups')]]"
+                    }
                   }
                 ]
               },
@@ -821,6 +952,137 @@
       "metadata": {
         "description": "Module 3: Deploys AVNM Configurations (Connectivity, Routing, Security Admin)."
       }
+    },
+    {
+      "condition": "[parameters('createHubVnetIfMissing')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "create-hub-vnet",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "vnetName": {
+            "value": "[parameters('hubVnetName')]"
+          },
+          "ipamPoolId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.ipamPoolId.value]"
+          },
+          "numberOfIpAddresses": {
+            "value": "[variables('hubVnetIpCount')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "includeTagValue": {
+            "value": "[parameters('includeTagValue')]"
+          },
+          "includeTagName": {
+            "value": "[parameters('includeTagName')]"
+          },
+          "descriptionTag": {
+            "value": "[parameters('descriptionTag')]"
+          },
+          "createdDateTag": {
+            "value": "[parameters('createdDateTag')]"
+          },
+          "additionalTags": {
+            "value": "[parameters('additionalTags')]"
+          },
+          "virtualNetworkAddressPrefixes": {
+            "value": []
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "5376297878739149806"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "vnetName": {
+              "type": "string"
+            },
+            "ipamPoolId": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "numberOfIpAddresses": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "environment": {
+              "type": "string"
+            },
+            "includeTagValue": {
+              "type": "string",
+              "defaultValue": "spokes"
+            },
+            "includeTagName": {
+              "type": "string",
+              "defaultValue": "avnm-group"
+            },
+            "descriptionTag": {
+              "type": "string"
+            },
+            "createdDateTag": {
+              "type": "string"
+            },
+            "additionalTags": {
+              "type": "object",
+              "defaultValue": {}
+            },
+            "virtualNetworkAddressPrefixes": {
+              "type": "array",
+              "defaultValue": []
+            }
+          },
+          "variables": {
+            "requiredTags": {
+              "Description": "[parameters('descriptionTag')]",
+              "Created Date": "[parameters('createdDateTag')]",
+              "environment": "[parameters('environment')]"
+            },
+            "resourceTags": {},
+            "tags": "[union(variables('requiredTags'), parameters('additionalTags'), variables('resourceTags'))]",
+            "useIpam": "[and(not(empty(parameters('ipamPoolId'))), not(empty(parameters('numberOfIpAddresses'))))]",
+            "virtualNetworkDnsServers": [
+              "172.16.6.132"
+            ]
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2024-05-01",
+              "name": "[parameters('vnetName')]",
+              "location": "[parameters('location')]",
+              "properties": "[if(variables('useIpam'), createObject('addressSpace', json(format('{{\"ipamPoolPrefixAllocations\":[{{\"pool\":{{\"id\":\"{0}\"}},\"numberOfIpAddresses\":\"{1}\"}}]}}', parameters('ipamPoolId'), parameters('numberOfIpAddresses'))), 'dhcpOptions', createObject('dnsServers', variables('virtualNetworkDnsServers')), 'subnets', createArray()), createObject('addressSpace', createObject('addressPrefixes', parameters('virtualNetworkAddressPrefixes')), 'dhcpOptions', createObject('dnsServers', variables('virtualNetworkDnsServers'))))]",
+              "tags": "[union(variables('tags'), createObject(format('{0}', parameters('includeTagName')), parameters('includeTagValue')))]"
+            }
+          ],
+          "outputs": {
+            "vnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core')]"
+      ]
     }
   ],
   "outputs": {
@@ -845,12 +1107,20 @@
       },
       "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.hubNetworkGroupId.value]"
     },
-    "spokesNetworkGroupId": {
+    "spokesNetworkGroupDevId": {
       "type": "string",
       "metadata": {
         "description": "The Resource ID of the Spokes Network Group (dynamic)."
       },
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.spokesNetworkGroupId.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.spokesNetworkGroupDevId.value]"
+    },
+    "spokesNetworkGroupTestId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.spokesNetworkGroupTestId.value]"
+    },
+    "spokesNetworkGroupProdId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'deploy-avnm-core'), '2025-04-01').outputs.spokesNetworkGroupProdId.value]"
     },
     "securityAdminConfigId": {
       "type": "string",

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.38.33.27573",
+      "templateHash": "5376297878739149806"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "vnetName": {
+      "type": "string"
+    },
+    "ipamPoolId": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "numberOfIpAddresses": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "environment": {
+      "type": "string"
+    },
+    "includeTagValue": {
+      "type": "string",
+      "defaultValue": "spokes"
+    },
+    "includeTagName": {
+      "type": "string",
+      "defaultValue": "avnm-group"
+    },
+    "descriptionTag": {
+      "type": "string"
+    },
+    "createdDateTag": {
+      "type": "string"
+    },
+    "additionalTags": {
+      "type": "object",
+      "defaultValue": {}
+    },
+    "virtualNetworkAddressPrefixes": {
+      "type": "array",
+      "defaultValue": []
+    }
+  },
+  "variables": {
+    "requiredTags": {
+      "Description": "[parameters('descriptionTag')]",
+      "Created Date": "[parameters('createdDateTag')]",
+      "environment": "[parameters('environment')]"
+    },
+    "resourceTags": {},
+    "tags": "[union(variables('requiredTags'), parameters('additionalTags'), variables('resourceTags'))]",
+    "useIpam": "[and(not(empty(parameters('ipamPoolId'))), not(empty(parameters('numberOfIpAddresses'))))]",
+    "virtualNetworkDnsServers": [
+      "172.16.6.132"
+    ]
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2024-05-01",
+      "name": "[parameters('vnetName')]",
+      "location": "[parameters('location')]",
+      "properties": "[if(variables('useIpam'), createObject('addressSpace', json(format('{{\"ipamPoolPrefixAllocations\":[{{\"pool\":{{\"id\":\"{0}\"}},\"numberOfIpAddresses\":\"{1}\"}}]}}', parameters('ipamPoolId'), parameters('numberOfIpAddresses'))), 'dhcpOptions', createObject('dnsServers', variables('virtualNetworkDnsServers')), 'subnets', createArray()), createObject('addressSpace', createObject('addressPrefixes', parameters('virtualNetworkAddressPrefixes')), 'dhcpOptions', createObject('dnsServers', variables('virtualNetworkDnsServers'))))]",
+      "tags": "[union(variables('tags'), createObject(format('{0}', parameters('includeTagName')), parameters('includeTagValue')))]"
+    }
+  ],
+  "outputs": {
+    "vnetId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+    }
+  }
+}

@@ -1,19 +1,9 @@
-/*
-  ====================================================================
-  MODULE:   vnet-from-ipam.bicep
-  SCOPE:    Resource Group
-  DESC:     Deploys a single VNet, drawing its CIDR
-            from the central AVNM IPAM Pool.
-  ====================================================================
-*/
-
 targetScope = 'resourceGroup'
 
 param location string
 param vnetName string
-param ipamPoolId string
-param numberOfIpAddresses string
-param teamName string
+param ipamPoolId string = ''
+param numberOfIpAddresses string = ''
 param environment string
 param includeTagValue string = 'spokes'
 param includeTagName string = 'avnm-group'

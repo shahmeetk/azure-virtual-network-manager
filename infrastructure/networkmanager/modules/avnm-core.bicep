@@ -17,8 +17,15 @@ param prefix string
 @description('The full Resource ID of the existing Hub VNet.')
 param hubVnetId string
 
-@description('List of subscription IDs or subscription resource IDs to scope AVNM to (e.g., "<subId>" or "/subscriptions/<subId>").')
-param subscriptionIds array
+@description('Hub subscription ID')
+param hubSubscriptionId string
+
+@description('Managed scope type for spokes')
+@allowed(['Subscription','ManagementGroup'])
+param managedScopeType string = 'Subscription'
+
+@description('Managed scope ID (subscription GUID or management group ID)')
+param managedScopeId string
 
 @description('The static CIDR block for the entire IPAM pool.')
 param ipamPoolPrefix string
@@ -33,8 +40,10 @@ param manageIpamPool bool = true
 // === VARIABLES ===
 var avnmName = '${prefix}-avnm'
 var hubNetworkGroupName = '${prefix}-ng-hub-static'
-var spokesNetworkGroupName = '${prefix}-ng-spokes-dynamic'
-var subscriptionResourceIds = [for sid in subscriptionIds: startsWith(sid, '/subscriptions/') ? sid : '/subscriptions/${sid}']
+var hubSubscriptionResourceId = startsWith(hubSubscriptionId, '/subscriptions/') ? hubSubscriptionId : '/subscriptions/${hubSubscriptionId}'
+var managedSubscriptionResourceId = managedScopeType == 'Subscription' ? (startsWith(managedScopeId, '/subscriptions/') ? managedScopeId : '/subscriptions/${managedScopeId}') : ''
+var managedManagementGroupResourceId = managedScopeType == 'ManagementGroup' ? (startsWith(managedScopeId, '/providers/Microsoft.Management/managementGroups/') ? managedScopeId : '/providers/Microsoft.Management/managementGroups/${managedScopeId}') : ''
+
 
 
 // === RESOURCES ===
@@ -52,7 +61,8 @@ resource avnm 'Microsoft.Network/networkManagers@2024-10-01' = {
       'Routing'
     ]
     networkManagerScopes: {
-      subscriptions: subscriptionResourceIds
+      subscriptions: managedScopeType == 'Subscription' ? [hubSubscriptionResourceId, managedSubscriptionResourceId] : [hubSubscriptionResourceId]
+      managementGroups: managedScopeType == 'ManagementGroup' ? [managedManagementGroupResourceId] : []
     }
   }
 }
@@ -85,21 +95,32 @@ resource hubNetworkGroup 'Microsoft.Network/networkManagers/networkGroups@2024-1
   }
 }
 
-@description('4a. Add the Hub VNet as a static member.')
-resource hubStaticMember 'Microsoft.Network/networkManagers/networkGroups/staticMembers@2024-10-01' = {
-  parent: hubNetworkGroup
-  name: 'hub-vnet-member'
+// 4a. Static hub member moved to main.bicep to ensure ordering when hub VNet is created conditionally
+
+@description('5a. Create the Network Group for Dev Spokes')
+resource spokesNetworkGroupDev 'Microsoft.Network/networkManagers/networkGroups@2024-10-01' = {
+  parent: avnm
+  name: '${prefix}-ng-spokes-dev'
   properties: {
-    resourceId: hubVnetId
+    description: 'Dynamic group for Development spokes.'
   }
 }
 
-@description('5. Create the Network Group for all Spokes (Dynamic Membership).')
-resource spokesNetworkGroup 'Microsoft.Network/networkManagers/networkGroups@2024-10-01' = {
+@description('5b. Create the Network Group for Test Spokes')
+resource spokesNetworkGroupTest 'Microsoft.Network/networkManagers/networkGroups@2024-10-01' = {
   parent: avnm
-  name: spokesNetworkGroupName
+  name: '${prefix}-ng-spokes-test'
   properties: {
-    description: 'Dynamic group for all tagged spoke VNets.'
+    description: 'Dynamic group for Test spokes.'
+  }
+}
+
+@description('5c. Create the Network Group for Prod Spokes')
+resource spokesNetworkGroupProd 'Microsoft.Network/networkManagers/networkGroups@2024-10-01' = {
+  parent: avnm
+  name: '${prefix}-ng-spokes-prod'
+  properties: {
+    description: 'Dynamic group for Production spokes.'
   }
 }
 
@@ -108,5 +129,7 @@ output avnmId string = avnm.id
 output avnmName string = avnm.name
 output ipamPoolId string = manageIpamPool ? ipamPool.id : ipamPoolExisting.id
 output hubNetworkGroupId string = hubNetworkGroup.id
-output hubStaticMemberId string = hubStaticMember.id
-output spokesNetworkGroupId string = spokesNetworkGroup.id
+// Static member created in main.bicep; no output here
+output spokesNetworkGroupDevId string = spokesNetworkGroupDev.id
+output spokesNetworkGroupTestId string = spokesNetworkGroupTest.id
+output spokesNetworkGroupProdId string = spokesNetworkGroupProd.id

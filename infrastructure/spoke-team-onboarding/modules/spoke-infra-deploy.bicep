@@ -32,6 +32,10 @@ param includeTagValue string = 'spokes'
 
 @description('Tag name used by policy to auto-onboard spokes (optional).')
 param includeTagName string = 'avnm-group'
+param descriptionTag string
+param createdDateTag string
+param additionalTags object = {}
+param virtualNetworkAddressPrefixes array = []
 
 @description('The name of the spoke Resource Group to create or use if it exists.')
 param spokeRgName string
@@ -80,5 +84,9 @@ module vnetDeploy 'vnet-from-ipam.bicep' = {
     environment: environment
     includeTagValue: includeTagValue
     includeTagName: includeTagName
+    descriptionTag: descriptionTag
+    createdDateTag: createdDateTag
+    additionalTags: additionalTags
+    virtualNetworkAddressPrefixes: virtualNetworkAddressPrefixes
   }
 }

@@ -8,14 +8,12 @@
     "location": {
       "value": "eastus"
     },
-    "hubVnetId": {
-      "value": "/subscriptions/2c87d8e3-098f-43d2-83fe-8263a03bb909/resourceGroups/avnm-test/providers/Microsoft.Network/virtualNetworks/vnet-avnm-test"
-    },
-    "subscriptionIds": {
-      "value": [
-        "2c87d8e3-098f-43d2-83fe-8263a03bb909","adb86055-a749-4b22-8d8b-4421b424256c"
-      ]
-    },
+    "hubResourceGroupName": { "value": "avnm-test" },
+    "hubVnetName": { "value": "vnet-avnm-test" },
+    "hubVnetSizeInBits": { "value": 20 },
+    "hubSubscriptionId": { "value": "2c87d8e3-098f-43d2-83fe-8263a03bb909" },
+    "managedScopeType": { "value": "Subscription" },
+    "managedScopeId": { "value": "adb86055-a749-4b22-8d8b-4421b424256c" },
     "ipamPoolPrefix": {
       "value": "172.16.128.0/17"
     },
@@ -28,20 +26,12 @@
     "internalSupernet": {
       "value": "172.16.128.0/17"
     },
-    "includeTagName": {
-      "value": "avnm-group"
-    },
-    "includeTagValue": {
-      "value": "spokes"
-    },
-    "policyScopeType": {
-      "value": "Subscription"
-    },
-    "policySubscriptionId": {
-      "value": "2c87d8e3-098f-43d2-83fe-8263a03bb909"
-    },
-    "policyManagementGroupId": {
-      "value": ""
-    }
+    "includeTagName": { "value": "avnm-group" },
+    "includeTagValue": { "value": "spokes" },
+    "environment": { "value": "Development" },
+    "descriptionTag": { "value": "Central hub and AVNM" },
+    "createdDateTag": { "value": "2025-11-15" },
+    "additionalTags": { "value": { "Owner": "PlatformTeam" } },
+    "createHubVnetIfMissing": { "value": true }
   }
 }

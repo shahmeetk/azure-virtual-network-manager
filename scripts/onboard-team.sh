@@ -58,8 +58,18 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ ! -f "$PARAMS_FILE" ]]; then
+  echo "Error: parameters file '$PARAMS_FILE' not found." >&2; exit 1
+fi
+
 # Resolve template paths relative to the parameters file directory
 PARAM_DIR=$(cd "$(dirname "$PARAMS_FILE")" && pwd)
+
+# Optional: read subscriptionId from params if --subscription not provided
+if [[ -z "$SUB" ]]; then
+  SUB_FROM_FILE=$(jq -r '.parameters.subscriptionId.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
+  if [[ -n "$SUB_FROM_FILE" ]]; then SUB="$SUB_FROM_FILE"; fi
+fi
 
 REQUIRED_KEYS=(teamName location environment ipamPoolId spokeResourceGroupName)
 for key in "${REQUIRED_KEYS[@]}"; do
