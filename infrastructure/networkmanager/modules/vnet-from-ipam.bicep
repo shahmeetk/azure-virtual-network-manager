@@ -7,18 +7,15 @@ param numberOfIpAddresses string = ''
 param environment string
 param includeTagValue string = 'spokes'
 param includeTagName string = 'avnm-group'
-param descriptionTag string
-param createdDateTag string
-param additionalTags object = {}
+param descriptionTag string = ''
+param createdDateTag string = ''
+param resourceTags object = {}
 param virtualNetworkAddressPrefixes array = []
 
 var requiredTags = {
-  Description: descriptionTag
-  'Created Date': createdDateTag
-  environment: environment
+  Environment: environment
 }
-var resourceTags = {}
-var tags = union(requiredTags, additionalTags, resourceTags)
+var tags = union(requiredTags, resourceTags)
 
 var useIpam = !empty(ipamPoolId) && !empty(numberOfIpAddresses)
 var virtualNetworkDnsServers = ['172.16.6.132']

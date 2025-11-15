@@ -19,7 +19,7 @@ param teamName string
 @description('The Azure region to deploy the spoke VNet resources into.')
 param location string
 
-@description('Environment name (e.g., dev, uat, prod).')
+@description('Environment name (Development, Test, Production).')
 param environment string
 
 @description('The Resource ID of the AVNM IPAM Pool (from hub deployment output).')
@@ -35,14 +35,8 @@ param spokeResourceGroupName string
 param vnetSizeInBits int = 24
 
 
-@description('Tag value used by policy to auto-onboard VNets to the Spokes Network Group (optional).')
-param includeTagValue string = 'spokes'
-
-@description('Tag name used by policy to auto-onboard VNets to the Spokes Network Group (optional).')
-param includeTagName string = 'avnm-group'
-param descriptionTag string
-param createdDateTag string
-param additionalTags object = {}
+@description('Resource tags object merged onto VNet and RG.')
+param resourceTags object = {}
 param virtualNetworkAddressPrefixes array = []
 
 // === MODULES ===
@@ -50,15 +44,10 @@ module spokeInfra 'modules/spoke-infra-deploy.bicep' = {
   name: 'deploy-spoke-${teamName}-${environment}'
   params: {
     location: location
-    teamName: teamName
     environment: environment
     ipamPoolId: ipamPoolId
     vnetSizeInBits: vnetSizeInBits
-    includeTagValue: includeTagValue
-    includeTagName: includeTagName
-    descriptionTag: descriptionTag
-    createdDateTag: createdDateTag
-    additionalTags: additionalTags
+    resourceTags: resourceTags
     virtualNetworkAddressPrefixes: virtualNetworkAddressPrefixes
     spokeRgName: spokeResourceGroupName
   }

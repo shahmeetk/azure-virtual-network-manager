@@ -1,0 +1,183 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.38.33.27573",
+      "templateHash": "9510704093655743683"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "The Azure region to deploy resources into."
+      }
+    },
+    "environment": {
+      "type": "string",
+      "metadata": {
+        "description": "The environment (dev, uat, prod)."
+      }
+    },
+    "ipamPoolId": {
+      "type": "string",
+      "metadata": {
+        "description": "The Resource ID of the AVNM IPAM Pool."
+      }
+    },
+    "vnetSizeInBits": {
+      "type": "int",
+      "metadata": {
+        "description": "The size of the VNet as a CIDR bit (e.g., 24)."
+      }
+    },
+    "resourceTags": {
+      "type": "object",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Resource tags object merged onto resources."
+      }
+    },
+    "virtualNetworkAddressPrefixes": {
+      "type": "array",
+      "defaultValue": []
+    },
+    "spokeRgName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the spoke Resource Group to create or use if it exists."
+      }
+    }
+  },
+  "variables": {
+    "vnetName": "[format('vnet-{0}-{1}', parameters('spokeRgName'), parameters('environment'))]",
+    "vnetSizeAsNumberString": "[if(equals(parameters('vnetSizeInBits'), 16), '65536', if(equals(parameters('vnetSizeInBits'), 17), '32768', if(equals(parameters('vnetSizeInBits'), 18), '16384', if(equals(parameters('vnetSizeInBits'), 19), '8192', if(equals(parameters('vnetSizeInBits'), 20), '4096', if(equals(parameters('vnetSizeInBits'), 21), '2048', if(equals(parameters('vnetSizeInBits'), 22), '1024', if(equals(parameters('vnetSizeInBits'), 23), '512', if(equals(parameters('vnetSizeInBits'), 24), '256', if(equals(parameters('vnetSizeInBits'), 25), '128', if(equals(parameters('vnetSizeInBits'), 26), '64', if(equals(parameters('vnetSizeInBits'), 27), '32', if(equals(parameters('vnetSizeInBits'), 28), '16', '256')))))))))))))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2024-03-01",
+      "name": "[parameters('spokeRgName')]",
+      "location": "[parameters('location')]",
+      "tags": {
+        "Environment": "[parameters('environment')]"
+      },
+      "metadata": {
+        "description": "1. Create the Resource Group for the spoke network."
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('deploy-{0}', variables('vnetName'))]",
+      "resourceGroup": "[parameters('spokeRgName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "vnetName": {
+            "value": "[variables('vnetName')]"
+          },
+          "ipamPoolId": {
+            "value": "[parameters('ipamPoolId')]"
+          },
+          "numberOfIpAddresses": {
+            "value": "[variables('vnetSizeAsNumberString')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "resourceTags": {
+            "value": "[parameters('resourceTags')]"
+          },
+          "virtualNetworkAddressPrefixes": {
+            "value": "[parameters('virtualNetworkAddressPrefixes')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "5851376005861533056"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "vnetName": {
+              "type": "string"
+            },
+            "ipamPoolId": {
+              "type": "string"
+            },
+            "numberOfIpAddresses": {
+              "type": "string"
+            },
+            "environment": {
+              "type": "string"
+            },
+            "descriptionTag": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "createdDateTag": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "resourceTags": {
+              "type": "object",
+              "defaultValue": {}
+            },
+            "virtualNetworkAddressPrefixes": {
+              "type": "array",
+              "defaultValue": []
+            }
+          },
+          "variables": {
+            "requiredTags": {
+              "Environment": "[parameters('environment')]"
+            },
+            "tags": "[union(variables('requiredTags'), parameters('resourceTags'))]",
+            "useIpam": "[and(not(empty(parameters('ipamPoolId'))), not(empty(parameters('numberOfIpAddresses'))))]",
+            "virtualNetworkDnsServers": [
+              "172.16.6.132"
+            ]
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2024-05-01",
+              "name": "[parameters('vnetName')]",
+              "location": "[parameters('location')]",
+              "properties": "[if(variables('useIpam'), createObject('addressSpace', json(format('{{\"ipamPoolPrefixAllocations\":[{{\"pool\":{{\"id\":\"{0}\"}},\"numberOfIpAddresses\":\"{1}\"}}]}}', parameters('ipamPoolId'), parameters('numberOfIpAddresses'))), 'dhcpOptions', createObject('dnsServers', variables('virtualNetworkDnsServers')), 'subnets', createArray()), createObject('addressSpace', createObject('addressPrefixes', parameters('virtualNetworkAddressPrefixes')), 'dhcpOptions', createObject('dnsServers', variables('virtualNetworkDnsServers'))))]",
+              "tags": "[variables('tags')]"
+            }
+          ],
+          "outputs": {
+            "vnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('spokeRgName'))]"
+      ],
+      "metadata": {
+        "description": "2. Deploy the VNet using the IPAM-enabled module."
+      }
+    }
+  ]
+}

@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "304496897990388137"
+      "templateHash": "2981255972667354989"
     }
   },
   "parameters": {
@@ -135,21 +135,23 @@
     },
     "descriptionTag": {
       "type": "string",
+      "defaultValue": "",
       "metadata": {
         "description": "Description tag value"
       }
     },
     "createdDateTag": {
       "type": "string",
+      "defaultValue": "",
       "metadata": {
         "description": "Created Date tag value (yyyy-mm-dd)"
       }
     },
-    "additionalTags": {
+    "resourceTags": {
       "type": "object",
       "defaultValue": {},
       "metadata": {
-        "description": "Additional tags object"
+        "description": "Resource tags object"
       }
     },
     "useHubGateway": {
@@ -238,7 +240,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "11901132697050605822"
+              "templateHash": "11773921723442730406"
             }
           },
           "parameters": {
@@ -369,7 +371,7 @@
             {
               "type": "Microsoft.Network/networkManagers/networkGroups",
               "apiVersion": "2024-10-01",
-              "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-dev', parameters('prefix')))]",
+              "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-development', parameters('prefix')))]",
               "properties": {
                 "description": "Dynamic group for Development spokes."
               },
@@ -397,7 +399,7 @@
             {
               "type": "Microsoft.Network/networkManagers/networkGroups",
               "apiVersion": "2024-10-01",
-              "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-prod', parameters('prefix')))]",
+              "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-production', parameters('prefix')))]",
               "properties": {
                 "description": "Dynamic group for Production spokes."
               },
@@ -428,7 +430,7 @@
             },
             "spokesNetworkGroupDevId": {
               "type": "string",
-              "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-dev', parameters('prefix')))]"
+              "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-development', parameters('prefix')))]"
             },
             "spokesNetworkGroupTestId": {
               "type": "string",
@@ -436,7 +438,7 @@
             },
             "spokesNetworkGroupProdId": {
               "type": "string",
-              "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-prod', parameters('prefix')))]"
+              "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-production', parameters('prefix')))]"
             }
           }
         }
@@ -991,8 +993,8 @@
           "createdDateTag": {
             "value": "[parameters('createdDateTag')]"
           },
-          "additionalTags": {
-            "value": "[parameters('additionalTags')]"
+          "resourceTags": {
+            "value": "[parameters('resourceTags')]"
           },
           "virtualNetworkAddressPrefixes": {
             "value": []
@@ -1005,7 +1007,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "5376297878739149806"
+              "templateHash": "4986214056077030433"
             }
           },
           "parameters": {
@@ -1035,12 +1037,14 @@
               "defaultValue": "avnm-group"
             },
             "descriptionTag": {
-              "type": "string"
+              "type": "string",
+              "defaultValue": ""
             },
             "createdDateTag": {
-              "type": "string"
+              "type": "string",
+              "defaultValue": ""
             },
-            "additionalTags": {
+            "resourceTags": {
               "type": "object",
               "defaultValue": {}
             },
@@ -1051,12 +1055,9 @@
           },
           "variables": {
             "requiredTags": {
-              "Description": "[parameters('descriptionTag')]",
-              "Created Date": "[parameters('createdDateTag')]",
-              "environment": "[parameters('environment')]"
+              "Environment": "[parameters('environment')]"
             },
-            "resourceTags": {},
-            "tags": "[union(variables('requiredTags'), parameters('additionalTags'), variables('resourceTags'))]",
+            "tags": "[union(variables('requiredTags'), parameters('resourceTags'))]",
             "useIpam": "[and(not(empty(parameters('ipamPoolId'))), not(empty(parameters('numberOfIpAddresses'))))]",
             "virtualNetworkDnsServers": [
               "172.16.6.132"

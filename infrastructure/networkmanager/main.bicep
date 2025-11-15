@@ -73,13 +73,13 @@ param includeTagValue string = 'spokes'
 param environment string
 
 @description('Description tag value')
-param descriptionTag string
+param descriptionTag string = ''
 
 @description('Created Date tag value (yyyy-mm-dd)')
-param createdDateTag string
+param createdDateTag string = ''
 
-@description('Additional tags object')
-param additionalTags object = {}
+@description('Resource tags object')
+param resourceTags object = {}
 
 @description('Connectivity: allow spokes to use hub gateway (transit to on-prem).')
 param useHubGateway bool = true
@@ -168,7 +168,7 @@ module hubVnet 'modules/vnet-from-ipam.bicep' = if (createHubVnetIfMissing) {
     includeTagName: includeTagName
     descriptionTag: descriptionTag
     createdDateTag: createdDateTag
-    additionalTags: additionalTags
+    resourceTags: resourceTags
     virtualNetworkAddressPrefixes: []
   }
 }

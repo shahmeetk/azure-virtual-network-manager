@@ -14,8 +14,6 @@ targetScope = 'subscription'
 @description('The Azure region to deploy resources into.')
 param location string
 
-@description('Short name for the team.')
-param teamName string
 
 @description('The environment (dev, uat, prod).')
 param environment string
@@ -27,14 +25,8 @@ param ipamPoolId string
 param vnetSizeInBits int
 
 
-@description('Tag value used by policy to auto-onboard spokes (optional).')
-param includeTagValue string = 'spokes'
-
-@description('Tag name used by policy to auto-onboard spokes (optional).')
-param includeTagName string = 'avnm-group'
-param descriptionTag string
-param createdDateTag string
-param additionalTags object = {}
+@description('Resource tags object merged onto resources.')
+param resourceTags object = {}
 param virtualNetworkAddressPrefixes array = []
 
 @description('The name of the spoke Resource Group to create or use if it exists.')
@@ -65,8 +57,8 @@ resource spokeRg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: spokeRgName
   location: location
   tags: {
-    Team: teamName
     Environment: environment
+    // resourceTags applied downstream in VNet module
   }
 }
 
@@ -80,13 +72,8 @@ module vnetDeploy 'vnet-from-ipam.bicep' = {
     vnetName: vnetName
     ipamPoolId: ipamPoolId
     numberOfIpAddresses: vnetSizeAsNumberString
-    teamName: teamName
     environment: environment
-    includeTagValue: includeTagValue
-    includeTagName: includeTagName
-    descriptionTag: descriptionTag
-    createdDateTag: createdDateTag
-    additionalTags: additionalTags
+    resourceTags: resourceTags
     virtualNetworkAddressPrefixes: virtualNetworkAddressPrefixes
   }
 }

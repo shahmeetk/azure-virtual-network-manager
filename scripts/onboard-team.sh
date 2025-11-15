@@ -71,7 +71,7 @@ if [[ -z "$SUB" ]]; then
   if [[ -n "$SUB_FROM_FILE" ]]; then SUB="$SUB_FROM_FILE"; fi
 fi
 
-REQUIRED_KEYS=(teamName location environment ipamPoolId spokeResourceGroupName)
+REQUIRED_KEYS=(location environment spokeResourceGroupName)
 for key in "${REQUIRED_KEYS[@]}"; do
   val=$(jq -r --arg k "$key" '.parameters[$k].value // empty' "$PARAMS_FILE" 2>/dev/null || true)
   if [[ -z "$val" ]]; then
@@ -82,12 +82,36 @@ done
 az account set --subscription "$SUB"
 
 echo "[Team Onboarding] Starting subscription-scope deployment (${DEPLOYMENT_NAME})..."
+
+# Build safe parameter list excluding helper-only keys (e.g., subscriptionId)
+ENVIRONMENT=$(jq -r '.parameters.environment.value' "$PARAMS_FILE")
+SPOKE_RG=$(jq -r '.parameters.spokeResourceGroupName.value' "$PARAMS_FILE")
+IPAM_POOL_ID=$(jq -r '.parameters.ipamPoolId.value // empty' "$PARAMS_FILE")
+VNET_BITS=$(jq -r '.parameters.vnetSizeInBits.value // 24' "$PARAMS_FILE")
+RESOURCE_TAGS=$(jq -c '.parameters.resourceTags.value // {}' "$PARAMS_FILE")
+VNET_PREFIXES=$(jq -c '.parameters.virtualNetworkAddressPrefixes.value // []' "$PARAMS_FILE")
+
+if [[ -z "$IPAM_POOL_ID" ]]; then
+  echo "Error: ipamPoolId is required and must be provided in params." >&2
+  exit 1
+fi
+
+PARAMS_ARGS=(
+  "location=$LOCATION"
+  "environment=$ENVIRONMENT"
+  "ipamPoolId=$IPAM_POOL_ID"
+  "spokeResourceGroupName=$SPOKE_RG"
+  "vnetSizeInBits=$VNET_BITS"
+  "resourceTags=$RESOURCE_TAGS"
+  "virtualNetworkAddressPrefixes=$VNET_PREFIXES"
+)
+
 if [[ "$WHAT_IF" == true ]]; then
   az deployment sub what-if \
     --name "$DEPLOYMENT_NAME" \
     --location "$LOCATION" \
     --template-file "$PARAM_DIR/subscription-main.bicep" \
-    --parameters @"$PARAMS_FILE" \
+    --parameters "${PARAMS_ARGS[@]}" \
     --verbose
   echo "What-if completed. No changes were applied."
   exit 0
@@ -97,7 +121,7 @@ az deployment sub create \
   --name "$DEPLOYMENT_NAME" \
   --location "$LOCATION" \
   --template-file "$PARAM_DIR/subscription-main.bicep" \
-  --parameters @"$PARAMS_FILE" \
+  --parameters "${PARAMS_ARGS[@]}" \
   --verbose
 echo "[Team Onboarding] Deployment complete. Resources were created in current subscription."
 echo "Done."

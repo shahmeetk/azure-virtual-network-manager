@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "11901132697050605822"
+      "templateHash": "11773921723442730406"
     }
   },
   "parameters": {
@@ -136,7 +136,7 @@
     {
       "type": "Microsoft.Network/networkManagers/networkGroups",
       "apiVersion": "2024-10-01",
-      "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-dev', parameters('prefix')))]",
+      "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-development', parameters('prefix')))]",
       "properties": {
         "description": "Dynamic group for Development spokes."
       },
@@ -164,7 +164,7 @@
     {
       "type": "Microsoft.Network/networkManagers/networkGroups",
       "apiVersion": "2024-10-01",
-      "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-prod', parameters('prefix')))]",
+      "name": "[format('{0}/{1}', variables('avnmName'), format('{0}-ng-spokes-production', parameters('prefix')))]",
       "properties": {
         "description": "Dynamic group for Production spokes."
       },
@@ -195,7 +195,7 @@
     },
     "spokesNetworkGroupDevId": {
       "type": "string",
-      "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-dev', parameters('prefix')))]"
+      "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-development', parameters('prefix')))]"
     },
     "spokesNetworkGroupTestId": {
       "type": "string",
@@ -203,7 +203,7 @@
     },
     "spokesNetworkGroupProdId": {
       "type": "string",
-      "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-prod', parameters('prefix')))]"
+      "value": "[resourceId('Microsoft.Network/networkManagers/networkGroups', variables('avnmName'), format('{0}-ng-spokes-production', parameters('prefix')))]"
     }
   }
 }

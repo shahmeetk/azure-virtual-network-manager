@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "977394114835645421"
+      "templateHash": "4014218414433925705"
     }
   },
   "parameters": {
@@ -26,7 +26,7 @@
     "environment": {
       "type": "string",
       "metadata": {
-        "description": "Environment name (e.g., dev, uat, prod)."
+        "description": "Environment name (Development, Test, Production)."
       }
     },
     "ipamPoolId": {
@@ -64,19 +64,16 @@
         "description": "The size of the VNet as a CIDR bit (e.g., 24 for a /24)."
       }
     },
-    "includeTagValue": {
-      "type": "string",
-      "defaultValue": "spokes",
+    "resourceTags": {
+      "type": "object",
+      "defaultValue": {},
       "metadata": {
-        "description": "Tag value used by policy to auto-onboard VNets to the Spokes Network Group (optional)."
+        "description": "Resource tags object merged onto VNet and RG."
       }
     },
-    "includeTagName": {
-      "type": "string",
-      "defaultValue": "avnm-group",
-      "metadata": {
-        "description": "Tag name used by policy to auto-onboard VNets to the Spokes Network Group (optional)."
-      }
+    "virtualNetworkAddressPrefixes": {
+      "type": "array",
+      "defaultValue": []
     }
   },
   "resources": [
@@ -94,9 +91,6 @@
           "location": {
             "value": "[parameters('location')]"
           },
-          "teamName": {
-            "value": "[parameters('teamName')]"
-          },
           "environment": {
             "value": "[parameters('environment')]"
           },
@@ -106,11 +100,11 @@
           "vnetSizeInBits": {
             "value": "[parameters('vnetSizeInBits')]"
           },
-          "includeTagValue": {
-            "value": "[parameters('includeTagValue')]"
+          "resourceTags": {
+            "value": "[parameters('resourceTags')]"
           },
-          "includeTagName": {
-            "value": "[parameters('includeTagName')]"
+          "virtualNetworkAddressPrefixes": {
+            "value": "[parameters('virtualNetworkAddressPrefixes')]"
           },
           "spokeRgName": {
             "value": "[parameters('spokeResourceGroupName')]"
@@ -123,7 +117,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "8406768417724138251"
+              "templateHash": "9510704093655743683"
             }
           },
           "parameters": {
@@ -131,12 +125,6 @@
               "type": "string",
               "metadata": {
                 "description": "The Azure region to deploy resources into."
-              }
-            },
-            "teamName": {
-              "type": "string",
-              "metadata": {
-                "description": "Short name for the team."
               }
             },
             "environment": {
@@ -157,19 +145,16 @@
                 "description": "The size of the VNet as a CIDR bit (e.g., 24)."
               }
             },
-            "includeTagValue": {
-              "type": "string",
-              "defaultValue": "spokes",
+            "resourceTags": {
+              "type": "object",
+              "defaultValue": {},
               "metadata": {
-                "description": "Tag value used by policy to auto-onboard spokes (optional)."
+                "description": "Resource tags object merged onto resources."
               }
             },
-            "includeTagName": {
-              "type": "string",
-              "defaultValue": "avnm-group",
-              "metadata": {
-                "description": "Tag name used by policy to auto-onboard spokes (optional)."
-              }
+            "virtualNetworkAddressPrefixes": {
+              "type": "array",
+              "defaultValue": []
             },
             "spokeRgName": {
               "type": "string",
@@ -189,7 +174,6 @@
               "name": "[parameters('spokeRgName')]",
               "location": "[parameters('location')]",
               "tags": {
-                "Team": "[parameters('teamName')]",
                 "Environment": "[parameters('environment')]"
               },
               "metadata": {
@@ -219,17 +203,14 @@
                   "numberOfIpAddresses": {
                     "value": "[variables('vnetSizeAsNumberString')]"
                   },
-                  "teamName": {
-                    "value": "[parameters('teamName')]"
-                  },
                   "environment": {
                     "value": "[parameters('environment')]"
                   },
-                  "includeTagValue": {
-                    "value": "[parameters('includeTagValue')]"
+                  "resourceTags": {
+                    "value": "[parameters('resourceTags')]"
                   },
-                  "includeTagName": {
-                    "value": "[parameters('includeTagName')]"
+                  "virtualNetworkAddressPrefixes": {
+                    "value": "[parameters('virtualNetworkAddressPrefixes')]"
                   }
                 },
                 "template": {
@@ -239,95 +220,66 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.38.33.27573",
-                      "templateHash": "2209946113123788787"
+                      "templateHash": "5851376005861533056"
                     }
                   },
                   "parameters": {
                     "location": {
-                      "type": "string",
-                      "metadata": {
-                        "description": "The Azure region."
-                      }
+                      "type": "string"
                     },
                     "vnetName": {
-                      "type": "string",
-                      "metadata": {
-                        "description": "The name for the new Virtual Network."
-                      }
+                      "type": "string"
                     },
                     "ipamPoolId": {
-                      "type": "string",
-                      "metadata": {
-                        "description": "The Resource ID of the AVNM IPAM Pool."
-                      }
+                      "type": "string"
                     },
                     "numberOfIpAddresses": {
-                      "type": "string",
-                      "metadata": {
-                        "description": "The number of IP addresses for the VNet (e.g., \"256\")."
-                      }
-                    },
-                    "teamName": {
-                      "type": "string",
-                      "metadata": {
-                        "description": "Tag: Team name."
-                      }
+                      "type": "string"
                     },
                     "environment": {
-                      "type": "string",
-                      "metadata": {
-                        "description": "Tag: Environment name."
-                      }
+                      "type": "string"
                     },
-                    "includeTagValue": {
+                    "descriptionTag": {
                       "type": "string",
-                      "defaultValue": "spokes",
-                      "metadata": {
-                        "description": "Tag value used by policy to auto-onboard spokes (default spokes)."
-                      }
+                      "defaultValue": ""
                     },
-                    "includeTagName": {
+                    "createdDateTag": {
                       "type": "string",
-                      "defaultValue": "avnm-group",
-                      "metadata": {
-                        "description": "Tag name used by policy to auto-onboard spokes (default avnm-group)."
-                      }
+                      "defaultValue": ""
+                    },
+                    "resourceTags": {
+                      "type": "object",
+                      "defaultValue": {}
+                    },
+                    "virtualNetworkAddressPrefixes": {
+                      "type": "array",
+                      "defaultValue": []
                     }
+                  },
+                  "variables": {
+                    "requiredTags": {
+                      "Environment": "[parameters('environment')]"
+                    },
+                    "tags": "[union(variables('requiredTags'), parameters('resourceTags'))]",
+                    "useIpam": "[and(not(empty(parameters('ipamPoolId'))), not(empty(parameters('numberOfIpAddresses'))))]",
+                    "virtualNetworkDnsServers": [
+                      "172.16.6.132"
+                    ]
                   },
                   "resources": [
                     {
                       "type": "Microsoft.Network/virtualNetworks",
-                      "apiVersion": "2024-10-01",
+                      "apiVersion": "2024-05-01",
                       "name": "[parameters('vnetName')]",
                       "location": "[parameters('location')]",
-                      "tags": {
-                        "Team": "[parameters('teamName')]",
-                        "Environment": "[parameters('environment')]",
-                        "[format('{0}', parameters('includeTagName'))]": "[parameters('includeTagValue')]"
-                      },
-                      "properties": {
-                        "addressSpace": "[json(format('{{\"ipamPoolPrefixAllocations\":[{{\"pool\":{{\"id\":\"{0}\"}},\"numberOfIpAddresses\":\"{1}\"}}]}}', parameters('ipamPoolId'), parameters('numberOfIpAddresses')))]",
-                        "subnets": []
-                      },
-                      "metadata": {
-                        "description": "Deploy the Virtual Network using IPAM for address allocation."
-                      }
+                      "properties": "[if(variables('useIpam'), createObject('addressSpace', json(format('{{\"ipamPoolPrefixAllocations\":[{{\"pool\":{{\"id\":\"{0}\"}},\"numberOfIpAddresses\":\"{1}\"}}]}}', parameters('ipamPoolId'), parameters('numberOfIpAddresses'))), 'dhcpOptions', createObject('dnsServers', variables('virtualNetworkDnsServers')), 'subnets', createArray()), createObject('addressSpace', createObject('addressPrefixes', parameters('virtualNetworkAddressPrefixes')), 'dhcpOptions', createObject('dnsServers', variables('virtualNetworkDnsServers'))))]",
+                      "tags": "[variables('tags')]"
                     }
                   ],
                   "outputs": {
                     "vnetId": {
                       "type": "string",
-                      "metadata": {
-                        "description": "The ID of the newly created VNet."
-                      },
                       "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
-                    },
-                    "allocatedAddressPrefixes": {
-                      "type": "array",
-                      "metadata": {
-                        "description": "The (dynamically allocated) address prefixes of the new VNet (array)."
-                      },
-                      "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')), '2024-10-01').addressSpace.addressPrefixes]"
                     }
                   }
                 }

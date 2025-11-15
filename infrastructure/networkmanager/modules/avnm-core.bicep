@@ -100,7 +100,7 @@ resource hubNetworkGroup 'Microsoft.Network/networkManagers/networkGroups@2024-1
 @description('5a. Create the Network Group for Dev Spokes')
 resource spokesNetworkGroupDev 'Microsoft.Network/networkManagers/networkGroups@2024-10-01' = {
   parent: avnm
-  name: '${prefix}-ng-spokes-dev'
+  name: '${prefix}-ng-spokes-development'
   properties: {
     description: 'Dynamic group for Development spokes.'
   }
@@ -118,7 +118,7 @@ resource spokesNetworkGroupTest 'Microsoft.Network/networkManagers/networkGroups
 @description('5c. Create the Network Group for Prod Spokes')
 resource spokesNetworkGroupProd 'Microsoft.Network/networkManagers/networkGroups@2024-10-01' = {
   parent: avnm
-  name: '${prefix}-ng-spokes-prod'
+  name: '${prefix}-ng-spokes-production'
   properties: {
     description: 'Dynamic group for Production spokes.'
   }

@@ -7,8 +7,10 @@ SUB=""
 RG=""
 LOCATION=""
 PARAMS_FILE=""
-INCLUDE_TAG_NAME="avnm-group"
-INCLUDE_TAG_VALUE="spokes"
+INCLUDE_TAG_NAME="Environment"
+INCLUDE_TAG_VALUE="Development"
+SECONDARY_TAG_NAME="avnm-group"
+SECONDARY_TAG_VALUE="spokes"
 SCOPE_TYPE="Subscription"
 MG_ID=""
 HUB_VNET_NAME=""
@@ -164,43 +166,95 @@ if [[ "$SCOPE_TYPE" == "ManagementGroup" ]]; then
 fi
 
 # Proactively remove any existing custom policy definition/assignment to avoid stale linked scopes
-if [[ "$SCOPE_TYPE" == "ManagementGroup" ]]; then
-  # Delete MG-scope assignment/definition if present (ignore errors)
-  az policy assignment delete --name avnm-add-tagged-vnets-to-spokes --scope "/providers/Microsoft.Management/managementGroups/${MG_ID}" 2>/dev/null || true
-  az policy definition delete --name avnm-mg-spoke-tagging-policy 2>/dev/null || true
-else
-  # Delete subscription-scope assignment/definition if present (ignore errors)
-  az policy assignment delete --name avnm-add-tagged-vnets-to-spokes 2>/dev/null || true
-  az policy definition delete --name avnm-spoke-tagging-policy 2>/dev/null || true
-fi
+true
 
 apply_policy_for_env() {
   local NG_ID="$1"; local ENV_VAL="$2"
+  local DISPLAY_NAME="AVNM - Add ${ENV_VAL} Tagged VNets to ${ENV_VAL} Spokes Group"
+  local ASSIGN_NAME="avnm-add-${ENV_VAL,,}-tagged-vnets-to-${ENV_VAL,,}-spokes"
+  local DEF_NAME="avnm-spoke-tagging-policy-${ENV_VAL,,}"
   local POLICY_PARAMS=(
     "spokesNetworkGroupId=$NG_ID"
     "includeTagName=$INCLUDE_TAG_NAME"
     "includeTagValue=$ENV_VAL"
+    "secondaryIncludeTagName=$SECONDARY_TAG_NAME"
+    "secondaryIncludeTagValue=$SECONDARY_TAG_VALUE"
+    "policyDisplayName=$DISPLAY_NAME"
+    "policyAssignmentName=$ASSIGN_NAME"
+    "policyDefinitionName=$DEF_NAME"
   )
-  if [[ "$SCOPE_TYPE" == "ManagementGroup" ]]; then
+
+  # Flexible scope: `managedScopeId` can be an array of subscriptions OR a single management group ID OR a single subscription ID
+  local TARGET_SCOPE_VALUE=$(jq -r '.parameters.managedScopeId.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
+  local TARGET_SCOPE_TYPE=$(jq -r '.parameters.managedScopeId.value | type' "$PARAMS_FILE" 2>/dev/null || true)
+  local SUB_LIST=()
+  local EFFECTIVE_SCOPE="${SCOPE_TYPE}"
+  local EFFECTIVE_MG_ID="$MG_ID"
+
+  if [[ -n "$TARGET_SCOPE_VALUE" && "$TARGET_SCOPE_VALUE" != "null" ]]; then
+    if [[ "$TARGET_SCOPE_TYPE" == "array" ]]; then
+      mapfile -t SUB_LIST < <(jq -r '.parameters.managedScopeId.value[]' "$PARAMS_FILE" 2>/dev/null || true)
+      EFFECTIVE_SCOPE="Subscription"
+    elif [[ "$TARGET_SCOPE_TYPE" == "string" ]]; then
+      if [[ "$TARGET_SCOPE_VALUE" =~ ^[0-9a-fA-F-]{36}$ ]]; then
+        SUB_LIST=("$TARGET_SCOPE_VALUE")
+        EFFECTIVE_SCOPE="Subscription"
+      elif [[ "$TARGET_SCOPE_VALUE" == /subscriptions/* ]]; then
+        local SUB_ID_EXTRACTED
+        SUB_ID_EXTRACTED=$(echo "$TARGET_SCOPE_VALUE" | awk -F'/subscriptions/' '{print $2}' | awk -F'/' '{print $1}')
+        SUB_LIST=("$SUB_ID_EXTRACTED")
+        EFFECTIVE_SCOPE="Subscription"
+      else
+        EFFECTIVE_SCOPE="ManagementGroup"
+        EFFECTIVE_MG_ID="$TARGET_SCOPE_VALUE"
+      fi
+    fi
+  fi
+
+  echo "Deploying AVNM policy at the '${EFFECTIVE_SCOPE}' scope..."
+  if [[ "$EFFECTIVE_SCOPE" == "ManagementGroup" ]]; then
+    az policy assignment delete --name "$ASSIGN_NAME" --scope "/providers/Microsoft.Management/managementGroups/${EFFECTIVE_MG_ID}" 2>/dev/null || true
+    az policy definition delete --name "$DEF_NAME" 2>/dev/null || true
     az deployment mg create \
       --name "avnm-mg-policy-${ENV_VAL}-$(date +%Y%m%d-%H%M%S)" \
       --location "$LOCATION" \
-      --management-group-id "$MG_ID" \
+      --management-group-id "$EFFECTIVE_MG_ID" \
       --template-file infrastructure/networkmanager/modules/mg-avnm-policy.bicep \
       --parameters "${POLICY_PARAMS[@]}" \
       --verbose
   else
-    az deployment sub create \
-      --name "avnm-sub-policy-${ENV_VAL}-$(date +%Y%m%d-%H%M%S)" \
-      --location "$LOCATION" \
-      --template-file infrastructure/networkmanager/modules/avnm-policy.bicep \
-      --parameters "${POLICY_PARAMS[@]}" \
-      --verbose
+    if [[ ${#SUB_LIST[@]} -gt 0 ]]; then
+      for TARGET_SUB in "${SUB_LIST[@]}"; do
+        echo "Assigning ${ENV_VAL} policy at subscription: ${TARGET_SUB}"
+        az account set --subscription "$TARGET_SUB"
+        az policy assignment delete --name "$ASSIGN_NAME" 2>/dev/null || true
+        az policy definition delete --name "$DEF_NAME" 2>/dev/null || true
+        az deployment sub create \
+          --name "avnm-sub-policy-${ENV_VAL}-$(date +%Y%m%d-%H%M%S)" \
+          --location "$LOCATION" \
+          --template-file infrastructure/networkmanager/modules/avnm-policy.bicep \
+          --parameters "${POLICY_PARAMS[@]}" \
+          --verbose
+      done
+    else
+      az policy assignment delete --name "$ASSIGN_NAME" 2>/dev/null || true
+      az policy definition delete --name "$DEF_NAME" 2>/dev/null || true
+      az deployment sub create \
+        --name "avnm-sub-policy-${ENV_VAL}-$(date +%Y%m%d-%H%M%S)" \
+        --location "$LOCATION" \
+        --template-file infrastructure/networkmanager/modules/avnm-policy.bicep \
+        --parameters "${POLICY_PARAMS[@]}" \
+        --verbose
+    fi
   fi
 }
 
 # Apply policy for Development, Test, Production using extracted NG IDs
 INCLUDE_TAG_NAME=${INCLUDE_TAG_NAME:-environment}
+# Ensure secondary tag is the spokes grouping tag
+SECONDARY_TAG_NAME=${SECONDARY_TAG_NAME:-avnm-group}
+SECONDARY_TAG_VALUE=${SECONDARY_TAG_VALUE:-spokes}
+# Use Pascal case values for environment tag to match your convention
 apply_policy_for_env "$DEV_NG_ID" "Development"
 apply_policy_for_env "$TEST_NG_ID" "Test"
 apply_policy_for_env "$PROD_NG_ID" "Production"

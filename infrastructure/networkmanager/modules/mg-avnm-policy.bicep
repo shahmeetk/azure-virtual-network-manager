@@ -10,9 +10,6 @@
 
 targetScope = 'managementGroup'
 
-@description('Management Group ID (name, not display name). This is the scope where policy will be deployed.')
-param parentManagementGroupId string
-
 @description('The Spokes Network Group resource ID (from Hub deployment outputs).')
 param spokesNetworkGroupId string
 
@@ -22,6 +19,12 @@ param includeTagName string = 'avnm-group'
 @description('Optional: A tag value used to include VNets. Default: spokes')
 param includeTagValue string = 'spokes'
 
+@description('Optional: Secondary tag name used to include VNets. Default: avnm-group')
+param secondaryIncludeTagName string = 'avnm-group'
+
+@description('Optional: Secondary tag value used to include VNets. Default: spokes')
+param secondaryIncludeTagValue string = 'spokes'
+
 @description('Policy definition display name')
 param policyDisplayName string = 'AVNM - Add Tagged VNets to Spokes Group'
 
@@ -30,12 +33,14 @@ param policyDisplayName string = 'AVNM - Add Tagged VNets to Spokes Group'
 @maxLength(64)
 param policyAssignmentName string = 'avnm-add-tagged-vnets-to-spokes'
 
-@description('Custom Policy Definition for AVNM addToNetworkGroup at management group scope')
+@description('Policy definition resource name (unique per environment)')
+param policyDefinitionName string = 'avnm-mg-spoke-tagging-policy'
+
 resource policyDef 'Microsoft.Authorization/policyDefinitions@2021-06-01' = {
-  name: 'avnm-mg-spoke-tagging-policy'
+  name: policyDefinitionName
   properties: {
     displayName: policyDisplayName
-    description: 'Adds any VNet with the tag "${includeTagName}" = "${includeTagValue}" to the AVNM Spokes Network Group.'
+    description: 'Adds any VNet with tags "${includeTagName}" = "${includeTagValue}" AND "${secondaryIncludeTagName}" = "${secondaryIncludeTagValue}" to the AVNM Spokes Network Group.'
     policyType: 'Custom'
     mode: 'Microsoft.Network.Data'
     policyRule: {
@@ -48,6 +53,10 @@ resource policyDef 'Microsoft.Authorization/policyDefinitions@2021-06-01' = {
           {
             field: format('tags[{0}]', includeTagName)
             equals: includeTagValue
+          }
+          {
+            field: format('tags[{0}]', secondaryIncludeTagName)
+            equals: secondaryIncludeTagValue
           }
         ]
       }

@@ -20,18 +20,19 @@
     "deployConnectivity": {
       "value": true
     },
+    "useHubGateway": { "value": false },
+    "isGlobalConnectivity": { "value": false },
+    "deleteExistingPeering": { "value": false },
     "firewallPrivateIpAddress": {
       "value": "172.16.15.6"
     },
     "internalSupernet": {
       "value": "172.16.128.0/17"
     },
-    "includeTagName": { "value": "avnm-group" },
-    "includeTagValue": { "value": "spokes" },
+    "includeTagName": { "value": "Environment" },
+    "includeTagValue": { "value": "Development" },
     "environment": { "value": "Development" },
-    "descriptionTag": { "value": "Central hub and AVNM" },
-    "createdDateTag": { "value": "2025-11-15" },
-    "additionalTags": { "value": { "Owner": "PlatformTeam" } },
+    "resourceTags": { "value": { "Description": "Central hub and AVNM", "Created Date": "2025-11-15" } },
     "createHubVnetIfMissing": { "value": true }
   }
 }

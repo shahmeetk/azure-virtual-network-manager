@@ -1,0 +1,131 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.38.33.27573",
+      "templateHash": "5174286829820009871"
+    }
+  },
+  "parameters": {
+    "spokesNetworkGroupId": {
+      "type": "string",
+      "metadata": {
+        "description": "The Spokes Network Group resource ID (from hub deployment outputs)."
+      }
+    },
+    "includeTagName": {
+      "type": "string",
+      "defaultValue": "avnm-group",
+      "metadata": {
+        "description": "Tag name used to include VNets (default: avnm-group)."
+      }
+    },
+    "includeTagValue": {
+      "type": "string",
+      "defaultValue": "spokes",
+      "metadata": {
+        "description": "Tag value used to include VNets (default: spokes)."
+      }
+    },
+    "secondaryIncludeTagName": {
+      "type": "string",
+      "defaultValue": "avnm-group",
+      "metadata": {
+        "description": "Secondary tag name used to include VNets (default: avnm-group)."
+      }
+    },
+    "secondaryIncludeTagValue": {
+      "type": "string",
+      "defaultValue": "spokes",
+      "metadata": {
+        "description": "Secondary tag value used to include VNets (default: spokes)."
+      }
+    },
+    "policyDisplayName": {
+      "type": "string",
+      "defaultValue": "AVNM - Add Tagged VNets to Spokes Group",
+      "metadata": {
+        "description": "Policy definition display name"
+      }
+    },
+    "policyAssignmentName": {
+      "type": "string",
+      "defaultValue": "avnm-add-tagged-vnets-to-spokes",
+      "minLength": 3,
+      "maxLength": 64,
+      "metadata": {
+        "description": "Policy assignment name (lowercase letters, numbers, and hyphens)."
+      }
+    },
+    "policyDefinitionName": {
+      "type": "string",
+      "defaultValue": "avnm-spoke-tagging-policy",
+      "metadata": {
+        "description": "Policy definition resource name (unique per environment)"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Authorization/policyDefinitions",
+      "apiVersion": "2021-06-01",
+      "name": "[parameters('policyDefinitionName')]",
+      "properties": {
+        "displayName": "[parameters('policyDisplayName')]",
+        "description": "[format('Adds any VNet with tags \"{0}\" = \"{1}\" AND \"{2}\" = \"{3}\" to the AVNM Spokes Network Group.', parameters('includeTagName'), parameters('includeTagValue'), parameters('secondaryIncludeTagName'), parameters('secondaryIncludeTagValue'))]",
+        "policyType": "Custom",
+        "mode": "Microsoft.Network.Data",
+        "policyRule": {
+          "if": {
+            "allOf": [
+              {
+                "field": "type",
+                "equals": "Microsoft.Network/virtualNetworks"
+              },
+              {
+                "field": "[format('tags[{0}]', parameters('includeTagName'))]",
+                "equals": "[parameters('includeTagValue')]"
+              },
+              {
+                "field": "[format('tags[{0}]', parameters('secondaryIncludeTagName'))]",
+                "equals": "[parameters('secondaryIncludeTagValue')]"
+              }
+            ]
+          },
+          "then": {
+            "effect": "addToNetworkGroup",
+            "details": {
+              "networkGroupId": "[parameters('spokesNetworkGroupId')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/policyAssignments",
+      "apiVersion": "2022-06-01",
+      "name": "[parameters('policyAssignmentName')]",
+      "properties": {
+        "displayName": "[parameters('policyDisplayName')]",
+        "policyDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/policyDefinitions', parameters('policyDefinitionName'))]"
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Authorization/policyDefinitions', parameters('policyDefinitionName'))]"
+      ],
+      "metadata": {
+        "description": "Policy Assignment at subscription scope"
+      }
+    }
+  ],
+  "outputs": {
+    "policyAssignmentId": {
+      "type": "string",
+      "metadata": {
+        "description": "Policy Assignment ID"
+      },
+      "value": "[subscriptionResourceId('Microsoft.Authorization/policyAssignments', parameters('policyAssignmentName'))]"
+    }
+  }
+}

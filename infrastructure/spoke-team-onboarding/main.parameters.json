@@ -3,17 +3,13 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "subscriptionId": { "value": "adb86055-a749-4b22-8d8b-4421b424256c" },
-    "teamName": { "value": "test" },
+    "teamName": { "value": "" },
     "location": { "value": "eastus" },
-    "environment": { "value": "dev" },
+    "environment": { "value": "Development" },
     "ipamPoolId": { "value": "/subscriptions/2c87d8e3-098f-43d2-83fe-8263a03bb909/resourceGroups/avnm-test/providers/Microsoft.Network/networkManagers/test-avnm/ipamPools/test-ipam-pool" },
     "vnetSizeInBits": { "value": 24 },
-    "includeTagName": { "value": "avnm-group" },
-    "includeTagValue": { "value": "spokes" },
-    "spokeResourceGroupName": { "value": "rg-test-dev-net" },
-    "descriptionTag": { "value": "AVNM Resource Deployment" },
-    "createdDateTag": { "value": "2025-11-15" },
-    "additionalTags": { "value": { "Owner": "TeamA" } },
-    "virtualNetworkAddressPrefixes": { "value": [24] }
+    "resourceTags": { "value": { "Description": "AVNM Resource Deployment", "Created Date": "2025-11-15", "Owner": "TeamA", "avnm-group": "spokes" } },
+    "spokeResourceGroupName": { "value": "rg-test-development" },
+    "virtualNetworkAddressPrefixes": { "value": [] }
   }
 }

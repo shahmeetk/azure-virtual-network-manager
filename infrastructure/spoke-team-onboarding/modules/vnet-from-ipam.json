@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "4986214056077030433"
+      "templateHash": "5851376005861533056"
     }
   },
   "parameters": {
@@ -16,23 +16,13 @@
       "type": "string"
     },
     "ipamPoolId": {
-      "type": "string",
-      "defaultValue": ""
+      "type": "string"
     },
     "numberOfIpAddresses": {
-      "type": "string",
-      "defaultValue": ""
+      "type": "string"
     },
     "environment": {
       "type": "string"
-    },
-    "includeTagValue": {
-      "type": "string",
-      "defaultValue": "spokes"
-    },
-    "includeTagName": {
-      "type": "string",
-      "defaultValue": "avnm-group"
     },
     "descriptionTag": {
       "type": "string",
@@ -68,7 +58,7 @@
       "name": "[parameters('vnetName')]",
       "location": "[parameters('location')]",
       "properties": "[if(variables('useIpam'), createObject('addressSpace', json(format('{{\"ipamPoolPrefixAllocations\":[{{\"pool\":{{\"id\":\"{0}\"}},\"numberOfIpAddresses\":\"{1}\"}}]}}', parameters('ipamPoolId'), parameters('numberOfIpAddresses'))), 'dhcpOptions', createObject('dnsServers', variables('virtualNetworkDnsServers')), 'subnets', createArray()), createObject('addressSpace', createObject('addressPrefixes', parameters('virtualNetworkAddressPrefixes')), 'dhcpOptions', createObject('dnsServers', variables('virtualNetworkDnsServers'))))]",
-      "tags": "[union(variables('tags'), createObject(format('{0}', parameters('includeTagName')), parameters('includeTagValue')))]"
+      "tags": "[variables('tags')]"
     }
   ],
   "outputs": {
