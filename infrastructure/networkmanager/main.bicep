@@ -72,12 +72,6 @@ param includeTagValue string = 'spokes'
 @allowed(['Development','Test','Production'])
 param environment string
 
-@description('Description tag value')
-param descriptionTag string = ''
-
-@description('Created Date tag value (yyyy-mm-dd)')
-param createdDateTag string = ''
-
 @description('Resource tags object')
 param resourceTags object = {}
 
@@ -112,7 +106,6 @@ module avnmCore 'modules/avnm-core.bicep' = {
     managedScopeType: managedScopeType
     managedScopeId: managedScopeId
     ipamPoolPrefix: ipamPoolPrefix
-    hubVnetId: resolvedHubVnetId
   }
 }
 
@@ -166,8 +159,6 @@ module hubVnet 'modules/vnet-from-ipam.bicep' = if (createHubVnetIfMissing) {
     environment: environment
     includeTagValue: includeTagValue
     includeTagName: includeTagName
-    descriptionTag: descriptionTag
-    createdDateTag: createdDateTag
     resourceTags: resourceTags
     virtualNetworkAddressPrefixes: []
   }

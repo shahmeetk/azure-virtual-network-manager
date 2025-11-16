@@ -24,7 +24,7 @@ Entry points:
 - Platform hub: `infrastructure/networkmanager/main.bicep` (targetScope: `resourceGroup`)
 - Team onboarding: `infrastructure/spoke-team-onboarding/subscription-main.bicep` (targetScope: `subscription`)
 
-Automation scripts (under `azure-enterprise-bicep/scripts/`):
+Automation scripts (under `azure-virtual-network-manager/scripts/`):
 - `validate-bicep.sh` — compile/validate and basic static checks
 - `test-deployment.sh` — parameter validation, what‑if, optional test deploy and cleanup
 - `ci-cd-pipeline.sh` — validate → test → deploy pipeline stages
@@ -111,10 +111,14 @@ What this deploys (minimal, subscription-scope AVNM):
 Key parameters (minimal):
 - `prefix` (string): naming prefix
 - `location` (string): region (defaults to `resourceGroup().location`)
-- `hubVnetId` (secure string): resource ID of existing hub VNet
-- `subscriptionIds` (array): subscription IDs to scope AVNM (e.g., `["<subId>"]`)
+- `hubResourceGroupName` (string): resource group containing the existing hub VNet
+- `hubVnetName` (string): existing hub VNet name
+- `hubVnetSizeInBits` (int): hub VNet size (e.g., 20 for /20)
+- `hubSubscriptionId` (string): subscription ID for hub
+- `managedScopeType` (string): `Subscription` or `ManagementGroup`
+- `managedScopeId` (string): subscription GUID or management group ID
 - `ipamPoolPrefix` (string): CIDR for IPAM pool (e.g., `10.0.0.0/10`)
-- `deployConnectivity` (bool): default false; enable later after a successful auto‑probe
+- `deployConnectivity` (bool): control connectivity config application
 
 Notes:
 - Optional modules (security, monitoring, cost, backup, DR) are disabled by default in this minimal deployment.
@@ -130,9 +134,19 @@ cat > hub.parameters.json <<'JSON'
 {
   "prefix": { "value": "ent" },
   "location": { "value": "eastus" },
-  "hubVnetId": { "value": "/subscriptions/<sub-id>/resourceGroups/hub-network-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet" },
-  "parentManagementGroupId": { "value": "platform-mg" },
-  "ipamPoolPrefix": { "value": "10.0.0.0/10" }
+  "hubResourceGroupName": { "value": "platform-hub-rg" },
+  "hubVnetName": { "value": "hub-vnet" },
+  "hubVnetSizeInBits": { "value": 20 },
+  "hubSubscriptionId": { "value": "<sub-id>" },
+  "managedScopeType": { "value": "Subscription" },
+  "managedScopeId": { "value": "<sub-id>" },
+  "ipamPoolPrefix": { "value": "10.0.0.0/10" },
+  "deployConnectivity": { "value": false },
+  "includeTagName": { "value": "avnm-group" },
+  "includeTagValue": { "value": "spokes" },
+  "environment": { "value": "Development" },
+  "resourceTags": { "value": { "Description": "Central hub and AVNM" } },
+  "createHubVnetIfMissing": { "value": false }
 }
 JSON
 
@@ -151,7 +165,7 @@ cd azure-enterprise-bicep/1-platform-deployment/hub
 az bicep build --file main.bicep --outdir ./dist
 ```
 2) In Portal, open "Deploy a custom template" → "Build your own template in the editor" → Load `./dist/main.json`.
-3) Select your subscription and Resource Group, enter parameters (`prefix`, `location`, `hubVnetId`, `parentManagementGroupId`, `ipamPoolPrefix`), then Review + Create.
+3) Select your subscription and Resource Group, enter parameters (`prefix`, `location`, `hubResourceGroupName`, `hubVnetName`, `ipamPoolPrefix`), then Review + Create.
 
 ### Post‑deployment: Publish AVNM configurations (commit/apply)
 Creating AVNM objects does not automatically apply them to VNets. Commit the configs per region.
@@ -211,25 +225,22 @@ az deployment mg create \
 Template: `infrastructure/spoke-team-onboarding/subscription-main.bicep`
 
 Key parameters:
-- `teamName` (string)
-- `parentManagementGroupId` (string)
-- `billingScope` (secure string): full resource ID of billing scope
 - `location` (string)
+- `environment` (string)
 - `ipamPoolId` (secure string): Resource ID of IPAM pool from hub deployment outputs
 - `vnetSizeInBits` (int, default 24)
-- `environments` (array, default `["dev","uat","prod"]`)
+- `spokeResourceGroupName` (string)
 
 Example deployment:
 ```bash
 cat > team.parameters.json <<'JSON'
 {
-  "teamName": { "value": "TeamA" },
-  "parentManagementGroupId": { "value": "platform-mg" },
-  "billingScope": { "value": "/providers/Microsoft.Billing/billingAccounts/<...>/enrollmentAccounts/<...>" },
   "location": { "value": "eastus" },
+  "environment": { "value": "Development" },
   "ipamPoolId": { "value": "<IPAM_POOL_RESOURCE_ID>" },
   "vnetSizeInBits": { "value": 24 },
-  "environments": { "value": ["dev","uat","prod"] }
+  "spokeResourceGroupName": { "value": "rg-team-spoke-dev" },
+  "resourceTags": { "value": { "avnm-group": "spokes" } }
 }
 JSON
 
@@ -367,7 +378,8 @@ azure-enterprise-bicep/
 |-----------|-------------|---------|----------|
 | `prefix` | Resource naming prefix | - | Yes |
 | `location` | Azure region | resourceGroup().location | Yes |
-| `hubVnetId` | Existing hub VNet resource ID | - | Yes |
+| `hubResourceGroupName` | Resource Group containing hub VNet | - | Yes |
+| `hubVnetName` | Hub VNet name | - | Yes |
 | `parentManagementGroupId` | Parent management group | - | Yes |
 | `ipamPoolPrefix` | IPAM pool CIDR block | - | Yes |
 
