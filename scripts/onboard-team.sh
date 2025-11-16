@@ -91,6 +91,12 @@ VNET_BITS=$(jq -r '.parameters.vnetSizeInBits.value // 24' "$PARAMS_FILE")
 RESOURCE_TAGS=$(jq -c '.parameters.resourceTags.value // {}' "$PARAMS_FILE")
 VNET_PREFIXES=$(jq -c '.parameters.virtualNetworkAddressPrefixes.value // []' "$PARAMS_FILE")
 
+echo "[Team Onboarding] Resolved parameters:"
+echo "  Environment: ${ENVIRONMENT}"
+echo "  Spoke Resource Group: ${SPOKE_RG}"
+echo "  IPAM Pool Id: ${IPAM_POOL_ID:+<provided>}"
+echo "  VNet Size (bits): ${VNET_BITS}"
+
 if [[ -z "$IPAM_POOL_ID" ]]; then
   echo "Error: ipamPoolId is required and must be provided in params." >&2
   exit 1

@@ -7,8 +7,6 @@ param numberOfIpAddresses string = ''
 param environment string
 param includeTagValue string = 'spokes'
 param includeTagName string = 'avnm-group'
-param descriptionTag string = ''
-param createdDateTag string = ''
 param resourceTags object = {}
 param virtualNetworkAddressPrefixes array = []
 

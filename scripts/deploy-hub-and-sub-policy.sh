@@ -7,10 +7,7 @@ SUB=""
 RG=""
 LOCATION=""
 PARAMS_FILE=""
-INCLUDE_TAG_NAME="Environment"
-INCLUDE_TAG_VALUE="Development"
-SECONDARY_TAG_NAME="avnm-group"
-SECONDARY_TAG_VALUE="spokes"
+ENVIRONMENT_DEFAULT="Development"
 SCOPE_TYPE="Subscription"
 MG_ID=""
 HUB_VNET_NAME=""
@@ -131,16 +128,8 @@ echo "Validation passed. All IDs belong to resource group '$RG'."
 echo "Step 3: Deploying AVNM policy at the '$SCOPE_TYPE' scope..."
 
 # Read tag parameters from the same hub parameters file (fallback to defaults)
-INCLUDE_TAG_NAME_FROM_FILE=$(jq -r '.parameters.includeTagName.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
-INCLUDE_TAG_VALUE_FROM_FILE=$(jq -r '.parameters.includeTagValue.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
-if [[ -n "$INCLUDE_TAG_NAME_FROM_FILE" ]]; then INCLUDE_TAG_NAME="$INCLUDE_TAG_NAME_FROM_FILE"; fi
-if [[ -n "$INCLUDE_TAG_VALUE_FROM_FILE" ]]; then INCLUDE_TAG_VALUE="$INCLUDE_TAG_VALUE_FROM_FILE"; fi
-
-# Validate tag parameters
-if [[ -z "$INCLUDE_TAG_NAME" || -z "$INCLUDE_TAG_VALUE" ]]; then
-  echo "Error: includeTagName/includeTagValue are missing. Set them in $PARAMS_FILE or via defaults in script." >&2
-  exit 1
-fi
+ENV_FROM_FILE=$(jq -r '.parameters.environment.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
+if [[ -n "$ENV_FROM_FILE" ]]; then ENVIRONMENT_DEFAULT="$ENV_FROM_FILE"; fi
 
 # Validate required new parameters for template
 HUB_SUB_ID_FROM_FILE=$(jq -r '.parameters.hubSubscriptionId.value // empty' "$PARAMS_FILE" 2>/dev/null || true)
@@ -175,10 +164,7 @@ apply_policy_for_env() {
   local DEF_NAME="avnm-spoke-tagging-policy-${ENV_VAL,,}"
   local POLICY_PARAMS=(
     "spokesNetworkGroupId=$NG_ID"
-    "includeTagName=$INCLUDE_TAG_NAME"
-    "includeTagValue=$ENV_VAL"
-    "secondaryIncludeTagName=$SECONDARY_TAG_NAME"
-    "secondaryIncludeTagValue=$SECONDARY_TAG_VALUE"
+    "environment=$ENV_VAL"
     "policyDisplayName=$DISPLAY_NAME"
     "policyAssignmentName=$ASSIGN_NAME"
     "policyDefinitionName=$DEF_NAME"
@@ -250,11 +236,6 @@ apply_policy_for_env() {
 }
 
 # Apply policy for Development, Test, Production using extracted NG IDs
-INCLUDE_TAG_NAME=${INCLUDE_TAG_NAME:-environment}
-# Ensure secondary tag is the spokes grouping tag
-SECONDARY_TAG_NAME=${SECONDARY_TAG_NAME:-avnm-group}
-SECONDARY_TAG_VALUE=${SECONDARY_TAG_VALUE:-spokes}
-# Use Pascal case values for environment tag to match your convention
 apply_policy_for_env "$DEV_NG_ID" "Development"
 apply_policy_for_env "$TEST_NG_ID" "Test"
 apply_policy_for_env "$PROD_NG_ID" "Production"

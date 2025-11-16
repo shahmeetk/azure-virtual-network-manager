@@ -119,7 +119,7 @@ Deprecated scripts/modules moved to archive:
 - `1-platform-deployment/hub/modules/avnm-policy-sub.bicep` (deprecated)
 
 ### 5. `onboard-team.sh`
-Onboards a team within the current subscription by creating (or reusing) a spoke Resource Group and deploying a spoke VNet carved from the AVNM IPAM pool.
+Onboards a spoke within the current subscription by creating (or reusing) a spoke Resource Group and deploying a spoke VNet carved from the AVNM IPAM pool.
 
 Usage:
 ```bash
@@ -132,10 +132,10 @@ Usage:
 ```
 
 Notes:
-- Template paths are resolved relative to the directory of the provided `--params` file. For example, if `--params` points to `2-team-onboarding/main.parameters.json`, the script will use `2-team-onboarding/subscription-main.bicep`.
-- The parameters file must provide: `teamName`, `location`, `environment`, `ipamPoolId`, `vnetSizeInBits`, `spokeResourceGroupName`.
-- Ensure the Hub deployment has completed and you have the `ipamPoolId` from its outputs (see `1-platform-deployment/hub/main.bicep` outputs).
-- Parameters are read from the JSON file. Required (managementGroup mode): `teamName`, `parentManagementGroupId`, `billingScope`, `location`, `ipamPoolId`. Required (subscription mode): `teamName`, `location`, `ipamPoolId`. Optional: `environments`, `vnetSizeInBits`, `maxRetries`, `retryDelaySeconds`, `enableLogging`, `includeTagName`, `includeTagValue`.
+- Template paths are resolved relative to the directory of the provided `--params` file. For example, if `--params` points to `infrastructure/spoke-team-onboarding/main.parameters.json`, the script will use `infrastructure/spoke-team-onboarding/subscription-main.bicep`.
+- The parameters file must provide: `location`, `environment`, `ipamPoolId`, `vnetSizeInBits`, `spokeResourceGroupName`.
+- Ensure the Hub deployment has completed and you have the `ipamPoolId` from its outputs (see `infrastructure/networkmanager/main.bicep` outputs).
+- Parameters are read from the JSON file. Required (subscription mode): `location`, `ipamPoolId`, `environment`, `spokeResourceGroupName`. Optional: `vnetSizeInBits`, `resourceTags`, `virtualNetworkAddressPrefixes`.
 
 Outputs:
 - In managementGroup mode: prints the new Team Management Group ID and a list of created subscriptions by environment.

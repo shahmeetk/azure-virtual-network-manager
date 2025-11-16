@@ -5,7 +5,8 @@ Version: 1.1.1
 ## Required Parameters
 - `prefix`: Short identifier for naming resources (e.g., `test`).
 - `location`: Azure region for hub resources (e.g., `eastus`).
-- `hubVnetId`: Full resource ID of the existing hub VNet.
+- `hubResourceGroupName`: Resource group name that contains the existing hub VNet.
+- `hubVnetName`: Name of the existing hub VNet.
 - `subscriptionIds`: Array of subscription IDs (or resource IDs) AVNM will manage.
 - `ipamPoolPrefix`: CIDR block for IPAM pool (e.g., `172.16.128.0/17`).
 

@@ -29,8 +29,8 @@
     "internalSupernet": {
       "value": "172.16.128.0/17"
     },
-    "includeTagName": { "value": "Environment" },
-    "includeTagValue": { "value": "Development" },
+    "includeTagName": { "value": "avnm-group" },
+    "includeTagValue": { "value": "spokes" },
     "environment": { "value": "Development" },
     "resourceTags": { "value": { "Description": "Central hub and AVNM", "Created Date": "2025-11-15" } },
     "createHubVnetIfMissing": { "value": true }

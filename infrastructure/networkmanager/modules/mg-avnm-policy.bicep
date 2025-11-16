@@ -13,17 +13,9 @@ targetScope = 'managementGroup'
 @description('The Spokes Network Group resource ID (from Hub deployment outputs).')
 param spokesNetworkGroupId string
 
-@description('Optional: A tag name used to include VNets. Default: avnm-group')
-param includeTagName string = 'avnm-group'
-
-@description('Optional: A tag value used to include VNets. Default: spokes')
-param includeTagValue string = 'spokes'
-
-@description('Optional: Secondary tag name used to include VNets. Default: avnm-group')
-param secondaryIncludeTagName string = 'avnm-group'
-
-@description('Optional: Secondary tag value used to include VNets. Default: spokes')
-param secondaryIncludeTagValue string = 'spokes'
+@description('Environment tag value used to include VNets (Development, Test, Production).')
+@allowed(['Development','Test','Production'])
+param environment string
 
 @description('Policy definition display name')
 param policyDisplayName string = 'AVNM - Add Tagged VNets to Spokes Group'
@@ -40,7 +32,7 @@ resource policyDef 'Microsoft.Authorization/policyDefinitions@2021-06-01' = {
   name: policyDefinitionName
   properties: {
     displayName: policyDisplayName
-    description: 'Adds any VNet with tags "${includeTagName}" = "${includeTagValue}" AND "${secondaryIncludeTagName}" = "${secondaryIncludeTagValue}" to the AVNM Spokes Network Group.'
+    description: 'Adds any VNet tagged with Environment = "${environment}" and avnm-group = "spokes" to the AVNM Spokes Network Group.'
     policyType: 'Custom'
     mode: 'Microsoft.Network.Data'
     policyRule: {
@@ -51,12 +43,12 @@ resource policyDef 'Microsoft.Authorization/policyDefinitions@2021-06-01' = {
             equals: 'Microsoft.Network/virtualNetworks'
           }
           {
-            field: format('tags[{0}]', includeTagName)
-            equals: includeTagValue
+            field: 'tags[Environment]'
+            equals: environment
           }
           {
-            field: format('tags[{0}]', secondaryIncludeTagName)
-            equals: secondaryIncludeTagValue
+            field: 'tags[avnm-group]'
+            equals: 'spokes'
           }
         ]
       }

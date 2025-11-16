@@ -296,53 +296,31 @@ test_hub_deployment() {
     # Create test parameter file if it doesn't exist
     if [ ! -f "$parameter_file" ]; then
         log "Creating test parameter file for hub deployment..."
-        cat > "$parameter_file" << EOF
+    cat > "$parameter_file" << EOF
 {
   "\$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "location": {
-      "value": "$LOCATION"
-    },
-    "prefix": {
-      "value": "$PREFIX"
-    },
-    "hubVnetAddressPrefix": {
-      "value": "10.0.0.0/16"
-    },
-    "hubFirewallName": {
-      "value": "${PREFIX}-hub-fw"
-    },
-    "hubFirewallRgName": {
-      "value": "${PREFIX}-hub-fw-rg"
-    },
-    "hubVnetId": {
-      "value": ""
-    },
-    "parentManagementGroupId": {
-      "value": ""
-    },
-    "ipamPoolPrefix": {
-      "value": "10.0.0.0/8"
-    },
-    "networkContributorPrincipalIds": {
-      "value": []
-    },
-    "readerPrincipalIds": {
-      "value": []
-    },
-    "logAnalyticsWorkspaceId": {
-      "value": ""
-    },
-    "enableAutoShutdown": {
-      "value": false
-    },
-    "monthlyBudget": {
-      "value": 1000
-    },
-    "budgetAlertThresholds": {
-      "value": [50, 75, 90]
-    }
+    "prefix": { "value": "$PREFIX" },
+    "location": { "value": "$LOCATION" },
+    "hubResourceGroupName": { "value": "${PREFIX}-${ENVIRONMENT}-hub-rg" },
+    "hubVnetName": { "value": "vnet-${PREFIX}-${ENVIRONMENT}-hub" },
+    "hubVnetSizeInBits": { "value": 20 },
+    "hubSubscriptionId": { "value": "" },
+    "managedScopeType": { "value": "Subscription" },
+    "managedScopeId": { "value": "" },
+    "ipamPoolPrefix": { "value": "10.0.0.0/8" },
+    "deployConnectivity": { "value": false },
+    "useHubGateway": { "value": false },
+    "isGlobalConnectivity": { "value": false },
+    "deleteExistingPeering": { "value": false },
+    "firewallPrivateIpAddress": { "value": "" },
+    "internalSupernet": { "value": "" },
+    "includeTagName": { "value": "avnm-group" },
+    "includeTagValue": { "value": "spokes" },
+    "environment": { "value": "Development" },
+    "resourceTags": { "value": { "Description": "Hub and AVNM" } },
+    "createHubVnetIfMissing": { "value": true }
   }
 }
 EOF

@@ -14,8 +14,6 @@ param location string
 @description('A short, unique prefix for naming all resources.')
 param prefix string
 
-@description('The full Resource ID of the existing Hub VNet.')
-param hubVnetId string
 
 @description('Hub subscription ID')
 param hubSubscriptionId string

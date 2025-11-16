@@ -14,8 +14,6 @@ param vnetName string
 param ipamPoolId string
 param numberOfIpAddresses string
 param environment string
-param descriptionTag string = ''
-param createdDateTag string = ''
 param resourceTags object = {}
 param virtualNetworkAddressPrefixes array = []
 

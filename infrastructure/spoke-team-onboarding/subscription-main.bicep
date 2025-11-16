@@ -11,10 +11,6 @@
 targetScope = 'subscription'
 
 // === PARAMETERS ===
-@description('Short, unique name for the new team (e.g., "TeamA"). Used for naming.')
-@minLength(2)
-@maxLength(24)
-param teamName string
 
 @description('The Azure region to deploy the spoke VNet resources into.')
 param location string
@@ -41,7 +37,7 @@ param virtualNetworkAddressPrefixes array = []
 
 // === MODULES ===
 module spokeInfra 'modules/spoke-infra-deploy.bicep' = {
-  name: 'deploy-spoke-${teamName}-${environment}'
+  name: 'deploy-spoke-${environment}'
   params: {
     location: location
     environment: environment
