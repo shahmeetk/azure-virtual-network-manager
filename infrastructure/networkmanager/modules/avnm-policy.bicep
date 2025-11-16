@@ -18,6 +18,9 @@ param spokesNetworkGroupId string
 @description('Environment tag value used to include VNets (Development, Test, Production).')
 @allowed(['Development','Test','Production'])
 param environment string
+// Matches VNets with tags:
+// - Environment = <environment>
+// - avnm-group = spokes
 
 @description('Policy definition display name')
 param policyDisplayName string = 'AVNM - Add Tagged VNets to Spokes Group'

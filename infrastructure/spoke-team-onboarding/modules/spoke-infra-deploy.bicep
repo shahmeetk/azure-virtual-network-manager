@@ -15,7 +15,8 @@ targetScope = 'subscription'
 param location string
 
 
-@description('The environment (dev, uat, prod).')
+@description('Environment (Development, Test, Production).')
+@allowed(['Development','Test','Production'])
 param environment string
 
 @description('The Resource ID of the AVNM IPAM Pool.')
@@ -27,13 +28,18 @@ param vnetSizeInBits int
 
 @description('Resource tags object merged onto resources.')
 param resourceTags object = {}
-param virtualNetworkAddressPrefixes array = []
 
 @description('The name of the spoke Resource Group to create or use if it exists.')
 param spokeRgName string
 
+@description('Optional: VNet name to use if existing or create if missing.')
+param vnetName string = ''
+
 // === VARIABLES ===
-var vnetName = 'vnet-${spokeRgName}-${environment}'
+var vnetNameLocal = empty(vnetName) ? 'vnet-${spokeRgName}-${environment}' : vnetName
+// Idempotent deployment behavior:
+// - If a VNet named `vnetNameLocal` exists in `spokeRgName`, it is updated
+// - If missing, it is created and allocated from IPAM
 // Map CIDR size to number of IP addresses as a string (Bicep lacks pow())
 var vnetSizeAsNumberString = vnetSizeInBits == 16 ? '65536'
   : vnetSizeInBits == 17 ? '32768'
@@ -69,11 +75,10 @@ module vnetDeploy 'vnet-from-ipam.bicep' = {
   scope: resourceGroup(spokeRg.name)
   params: {
     location: location
-    vnetName: vnetName
+    vnetName: vnetNameLocal
     ipamPoolId: ipamPoolId
     numberOfIpAddresses: vnetSizeAsNumberString
     environment: environment
     resourceTags: resourceTags
-    virtualNetworkAddressPrefixes: virtualNetworkAddressPrefixes
   }
 }

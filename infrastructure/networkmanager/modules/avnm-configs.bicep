@@ -79,14 +79,14 @@ resource connConfig 'Microsoft.Network/networkManagers/connectivityConfiguration
       networkGroupId: ngId
       groupConnectivity: 'None'
       useHubGateway: useHubGateway ? 'True' : 'False'
-      isGlobal: isGlobalConnectivity ? 'True' : 'False'
     }]
     deleteExistingPeering: deleteExistingPeering ? 'True' : 'False'
     isGlobal: isGlobalConnectivity ? 'True' : 'False'
     connectivityCapabilities: {
       connectedGroupPrivateEndpointsScale: 'Standard'
-      connectedGroupAddressOverlap: 'Allowed'
+      connectedGroupAddressOverlap: 'Disallowed'
       peeringEnforcement: 'Unenforced'
+      // Prevent overlapping CIDRs and ensure consistent peering enforcement
     }
   }
 }
@@ -97,6 +97,8 @@ resource routeConfig 'Microsoft.Network/networkManagers/routingConfigurations@20
   name: routingConfigName
   properties: {
     description: 'Forces all spoke traffic (Internet and Spoke-to-Spoke) to the hub firewall.'
+    routeTableUsageModel: 'ManagedOnly'
+    // AVNM manages route tables to avoid manual drift and ensure consistency
   }
 }
 

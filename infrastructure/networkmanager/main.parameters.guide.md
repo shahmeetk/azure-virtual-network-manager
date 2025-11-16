@@ -47,4 +47,4 @@ This guide explains parameters for `infrastructure/networkmanager/main.bicep`. K
 - `createHubVnetIfMissing` (optional): Create hub VNet from IPAM when true
 
 ### Change Log
-- 1.1.2: Removed obsolete `hubVnetId`; added `hubResourceGroupName` + `hubVnetName`.
+- 1.1.2: Removed obsolete `hubVnetId`; added `hubResourceGroupName` + `hubVnetName`; clarified AVNM configs defaults and managed routing.

@@ -20,7 +20,14 @@ How to deploy
   ```
 
 Parameters
-- Same as previously documented for subscription-mode team onboarding.
+- `subscriptionId` (optional): Azure subscription ID used by scripts when not passed via CLI
+- `location` (required): Azure region for deployment record
+- `environment` (required): `Development | Test | Production`
+- `ipamPoolId` (required): Resource ID of IPAM pool from hub outputs
+- `vnetSizeInBits` (optional): VNet CIDR size bits; defaults to 24
+- `spokeResourceGroupName` (required): Name of the RG to create/use for the spoke VNet
+- `resourceTags` (optional): Additional tags merged onto resources (include `avnm-group: spokes` for dynamic onboarding)
+- `vnetName` (optional): Explicit VNet name to create or update; default is `vnet-<spokeResourceGroupName>-<environment>`
 
 Change Log
-- 1.1.1: Updated paths to `infrastructure/spoke-team-onboarding`.
+- 1.1.2: Added `vnetName` and removed unused `virtualNetworkAddressPrefixes` in subscription flow.

@@ -230,6 +230,7 @@ Key parameters:
 - `ipamPoolId` (secure string): Resource ID of IPAM pool from hub deployment outputs
 - `vnetSizeInBits` (int, default 24)
 - `spokeResourceGroupName` (string)
+- `vnetName` (string, optional): Explicit VNet name to create or update
 
 Example deployment:
 ```bash
@@ -323,9 +324,25 @@ TODO: Add automated unit/lint tests and a `tests/` folder if deeper testing is r
 
 ## Notes on AVNM Configurations
 
-- Connectivity: Hub‑and‑Spoke via `modules/avnm-configs.bicep` (enabled by default)
-- Routing: Optional and disabled by default in minimal deployment; when you supply `firewallPrivateIpAddress` and `internalSupernet`, routing rules will be created to send 0.0.0.0/0 and internal supernet traffic to the hub firewall
-- Security Admin Config: Baseline Security Admin configuration is created; commit/apply it after deployment via AVNM Deployments
+- Connectivity: Hub‑and‑Spoke via `modules/avnm-configs.bicep` with `groupConnectivity: None` for spokes and `useHubGateway: True` when hub has a gateway
+- Address Overlap: Disallowed between spokes to prevent CIDR conflicts (`connectedGroupAddressOverlap: 'Disallowed'`)
+- Routing: Optional; when `firewallPrivateIpAddress` and `internalSupernet` are provided, routing config is created with route table usage set to managed (`routeTableUsageModel: 'ManagedOnly'`) and rules forcing `0.0.0.0/0` and internal supernet to the firewall
+- Security Admin Config: Baseline denies for risky inbound ports (RDP, SSH, SMB, WinRM); commit/apply configurations after deployment via AVNM Deployments
+
+## Script Flow
+
+- `deploy-hub-and-sub-policy.sh`
+  - Sets the Azure context subscription
+  - Ensures the hub Resource Group exists
+  - Deploys hub resources via `infrastructure/networkmanager/main.bicep`
+  - Extracts Spokes Network Group IDs from hub outputs
+  - Applies policy per environment (Development, Test, Production) matching `Environment` and `avnm-group=spokes`
+
+- `onboard-team.sh`
+  - Parses `main.parameters.json` for location, environment, `ipamPoolId`, RG name, and optional `vnetName`
+  - Echoes resolved parameters for transparency
+  - Runs subscription-scope deployment `infrastructure/spoke-team-onboarding/subscription-main.bicep`
+  - Creates or updates the spoke Resource Group and VNet (idempotent)
 
 
 ## Troubleshooting

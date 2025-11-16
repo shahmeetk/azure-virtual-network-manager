@@ -33,7 +33,13 @@ param vnetSizeInBits int = 24
 
 @description('Resource tags object merged onto VNet and RG.')
 param resourceTags object = {}
-param virtualNetworkAddressPrefixes array = []
+
+@description('Optional: VNet name to use if existing or to create when missing.')
+param vnetName string = ''
+
+// Idempotent behavior:
+// - If a VNet named `vnetName` exists in `spokeResourceGroupName`, it is updated
+// - If it does not exist, it is created and allocated from IPAM
 
 // === MODULES ===
 module spokeInfra 'modules/spoke-infra-deploy.bicep' = {
@@ -44,8 +50,8 @@ module spokeInfra 'modules/spoke-infra-deploy.bicep' = {
     ipamPoolId: ipamPoolId
     vnetSizeInBits: vnetSizeInBits
     resourceTags: resourceTags
-    virtualNetworkAddressPrefixes: virtualNetworkAddressPrefixes
     spokeRgName: spokeResourceGroupName
+    vnetName: vnetName
   }
 }
 
