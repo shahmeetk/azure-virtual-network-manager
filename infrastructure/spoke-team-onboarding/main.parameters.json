@@ -7,8 +7,8 @@
     "environment": { "value": "Development" },
     "ipamPoolId": { "value": "/subscriptions/2c87d8e3-098f-43d2-83fe-8263a03bb909/resourceGroups/avnm-test/providers/Microsoft.Network/networkManagers/test-avnm/ipamPools/test-ipam-pool" },
     "vnetSizeInBits": { "value": 24 },
-    "resourceTags": { "value": { "Description": "AVNM Resource Deployment", "Created Date": "2025-11-15", "Owner": "TeamA", "avnm-group": "spokes" } },
-    "spokeResourceGroupName": { "value": "rg-test" },
-    "vnetName": { "value": "vnet-rg-test-Development" }
+    "resourceTags": { "value": { "Description": "AVNM Resource Deployment", "Created Date": "2025-11-15", "Owner": "TeamC", "avnm-group": "spokes" } },
+    "spokeResourceGroupName": { "value": "rg-test-development-2" },
+    "vnetName": { "value": "vnet-rg-test-development-Development-2" }
   }
 }

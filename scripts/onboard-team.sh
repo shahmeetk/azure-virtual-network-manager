@@ -89,7 +89,7 @@ SPOKE_RG=$(jq -r '.parameters.spokeResourceGroupName.value' "$PARAMS_FILE")
 IPAM_POOL_ID=$(jq -r '.parameters.ipamPoolId.value // empty' "$PARAMS_FILE")
 VNET_BITS=$(jq -r '.parameters.vnetSizeInBits.value // 24' "$PARAMS_FILE")
 RESOURCE_TAGS=$(jq -c '.parameters.resourceTags.value // {}' "$PARAMS_FILE")
-VNET_PREFIXES=$(jq -c '.parameters.virtualNetworkAddressPrefixes.value // []' "$PARAMS_FILE")
+VNET_NAME=$(jq -r '.parameters.vnetName.value // empty' "$PARAMS_FILE")
 
 echo "[Team Onboarding] Resolved parameters:"
 echo "  Environment: ${ENVIRONMENT}"
@@ -109,7 +109,7 @@ PARAMS_ARGS=(
   "spokeResourceGroupName=$SPOKE_RG"
   "vnetSizeInBits=$VNET_BITS"
   "resourceTags=$RESOURCE_TAGS"
-  "virtualNetworkAddressPrefixes=$VNET_PREFIXES"
+  "vnetName=$VNET_NAME"
 )
 
 if [[ "$WHAT_IF" == true ]]; then
