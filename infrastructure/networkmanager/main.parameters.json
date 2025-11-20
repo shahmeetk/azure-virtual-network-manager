@@ -13,7 +13,12 @@
     "hubVnetSizeInBits": { "value": 20 },
     "hubSubscriptionId": { "value": "2c87d8e3-098f-43d2-83fe-8263a03bb909" },
     "managedScopeType": { "value": "Subscription" },
-    "managedScopeId": { "value": "adb86055-a749-4b22-8d8b-4421b424256c" },
+    "managedScopeIds": {
+      "value": [
+        "adb86055-a749-4b22-8d8b-4421b424256c",
+        "2c87d8e3-098f-43d2-83fe-8263a03bb909"
+      ]
+    },
     "ipamPoolPrefix": {
       "value": "172.16.128.0/17"
     },

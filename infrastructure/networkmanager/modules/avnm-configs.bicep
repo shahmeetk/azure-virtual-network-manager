@@ -19,10 +19,10 @@ param hubVnetId string
 param spokesNetworkGroupIds array
 
 @description('Whether to deploy the Connectivity Configuration. Set true only after backend acceptance is verified.')
-param deployConnectivity bool = false
+param deployConnectivity bool = true
 
 @description('If true, spokes use the hub gateway for transit (recommended for hub-and-spoke).')
-param useHubGateway bool = true
+param useHubGateway bool = false
 
 @description('If true, configuration is global across regions. Keep false for single-region deployments.')
 param isGlobalConnectivity bool = false
@@ -97,8 +97,6 @@ resource routeConfig 'Microsoft.Network/networkManagers/routingConfigurations@20
   name: routingConfigName
   properties: {
     description: 'Forces all spoke traffic (Internet and Spoke-to-Spoke) to the hub firewall.'
-    routeTableUsageModel: 'ManagedOnly'
-    // AVNM manages route tables to avoid manual drift and ensure consistency
   }
 }
 

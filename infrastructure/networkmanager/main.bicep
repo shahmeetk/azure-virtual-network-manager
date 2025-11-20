@@ -20,16 +20,6 @@ param location string = resourceGroup().location
 @maxLength(10)
 param prefix string
 
-// @description('The name of the existing Azure Firewall in the hub.')
-// @minLength(1)
-// @maxLength(80)
-// param hubFirewallName string
-
-// @description('The name of the Resource Group containing the existing Azure Firewall.')
-// @minLength(1)
-// @maxLength(90)
-// param hubFirewallRgName string
-
 @description('Hub Resource Group name')
 param hubResourceGroupName string
 
@@ -47,8 +37,8 @@ param hubSubscriptionId string
 @allowed(['Subscription','ManagementGroup'])
 param managedScopeType string = 'Subscription'
 
-@description('Managed scope ID (subscription GUID or management group ID)')
-param managedScopeId string
+@description('An array of subscription IDs or a single management group ID that AVNM will manage.')
+param managedScopeIds array
 
 @description('The static CIDR block for the entire IPAM pool (e.g., "10.0.0.0/10").')
 param ipamPoolPrefix string
@@ -84,15 +74,8 @@ param isGlobalConnectivity bool = false
 @description('Connectivity: delete pre-existing manual peerings when applying.')
 param deleteExistingPeering bool = true
 
-
-
-// === EXISTING RESOURCES ===
-// (Disabled for minimal deployment; firewall is optional)
-// @description('Reference to the existing Azure Firewall to retrieve its private IP for routing.')
-// resource existingFirewall 'Microsoft.Network/azureFirewalls@2023-11-01' existing = {
-//   scope: resourceGroup(hubFirewallRgName)
-//   name: hubFirewallName
-// }
+@description('Create Hub VNet if missing (controlled by script)')
+param createHubVnetIfMissing bool = false
 
 // === MODULES ===
 
@@ -104,12 +87,10 @@ module avnmCore 'modules/avnm-core.bicep' = {
     prefix: prefix
     hubSubscriptionId: hubSubscriptionId
     managedScopeType: managedScopeType
-    managedScopeId: managedScopeId
+    managedScopeIds: managedScopeIds
     ipamPoolPrefix: ipamPoolPrefix
   }
 }
-
-// Note: connectivity-autoprobe module deprecated; using native Bicep connectivity in avnm-configs module.
 
 @description('Module 3: Deploys AVNM Configurations (Connectivity, Routing, Security Admin).')
 module avnmConfigs 'modules/avnm-configs.bicep' = {
@@ -146,9 +127,6 @@ var hubVnetIpCount = hubVnetSizeInBits == 16 ? '65536'
   : hubVnetSizeInBits == 28 ? '16'
   : '4096'
 
-@description('Create Hub VNet if missing (controlled by script)')
-param createHubVnetIfMissing bool = false
-
 module hubVnet 'modules/vnet-from-ipam.bicep' = if (createHubVnetIfMissing) {
   name: 'create-hub-vnet'
   params: {
@@ -165,14 +143,14 @@ module hubVnet 'modules/vnet-from-ipam.bicep' = if (createHubVnetIfMissing) {
 }
 
 // Create static hub member after AVNM core and (if used) hub VNet creation
-resource avnmExisting 'Microsoft.Network/networkManagers@2024-10-01' existing = {
+resource avnmExisting 'Microsoft.Network/networkManagers@2024-05-01' existing = {
   name: avnmName
 }
-resource hubNetworkGroupExisting 'Microsoft.Network/networkManagers/networkGroups@2024-10-01' existing = {
+resource hubNetworkGroupExisting 'Microsoft.Network/networkManagers/networkGroups@2024-05-01' existing = {
   parent: avnmExisting
   name: '${prefix}-ng-hub-static'
 }
-resource hubStaticMember 'Microsoft.Network/networkManagers/networkGroups/staticMembers@2024-10-01' = {
+resource hubStaticMember 'Microsoft.Network/networkManagers/networkGroups/staticMembers@2024-05-01' = {
   parent: hubNetworkGroupExisting
   name: 'hub-vnet-member'
   properties: {
@@ -187,6 +165,7 @@ resource existingHubVnet 'Microsoft.Network/virtualNetworks@2024-05-01' existing
   name: hubVnetName
 }
 var resolvedHubVnetId = existingHubVnet.id
+var avnmName = '${prefix}-avnm'
 
 // === OUTPUTS ===
 @description('The Resource ID of the deployed AVNM instance.')
@@ -212,4 +191,3 @@ output securityAdminRuleCollectionId string = avnmConfigs.outputs.securityAdminR
 
 @description('Security Admin Rule ID (if deployed).')
 output securityAdminRuleId string = avnmConfigs.outputs.securityAdminRuleId
-var avnmName = '${prefix}-avnm'

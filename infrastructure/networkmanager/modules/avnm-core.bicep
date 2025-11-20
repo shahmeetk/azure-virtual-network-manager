@@ -8,65 +8,55 @@
 
 targetScope = 'resourceGroup'
 
+// === PARAMETERS ===
 @description('The Azure region for all resources.')
 param location string
 
 @description('A short, unique prefix for naming all resources.')
 param prefix string
 
-
-@description('Hub subscription ID')
+@description('The subscription ID where the hub VNet resides.')
 param hubSubscriptionId string
 
-@description('Managed scope type for spokes')
+@description('The type of scope AVNM will manage for spokes.')
 @allowed(['Subscription','ManagementGroup'])
 param managedScopeType string = 'Subscription'
 
-@description('Managed scope ID (subscription GUID or management group ID)')
-param managedScopeId string
+@description('An array of subscription IDs or a single management group ID that AVNM will manage.')
+param managedScopeIds array
 
 @description('The static CIDR block for the entire IPAM pool.')
 param ipamPoolPrefix string
 
-@description('Name of the IPAM pool to create or reference. Use a stable name to ensure a single pool (e.g., "<prefix>-ipam-pool").')
-param ipamPoolName string = '${prefix}-ipam-pool'
-
-@description('If true, this deployment will manage (create/update) the IPAM pool. If false, the template will not attempt to modify it (useful when a pool already exists with a different prefix).')
-param manageIpamPool bool = true
-
-
 // === VARIABLES ===
 var avnmName = '${prefix}-avnm'
+var ipamPoolName = '${prefix}-ipam-pool'
 var hubNetworkGroupName = '${prefix}-ng-hub-static'
-var hubSubscriptionResourceId = startsWith(hubSubscriptionId, '/subscriptions/') ? hubSubscriptionId : '/subscriptions/${hubSubscriptionId}'
-var managedSubscriptionResourceId = managedScopeType == 'Subscription' ? (startsWith(managedScopeId, '/subscriptions/') ? managedScopeId : '/subscriptions/${managedScopeId}') : ''
-var managedManagementGroupResourceId = managedScopeType == 'ManagementGroup' ? (startsWith(managedScopeId, '/providers/Microsoft.Management/managementGroups/') ? managedScopeId : '/providers/Microsoft.Management/managementGroups/${managedScopeId}') : ''
+var spokesNetworkGroupDevName = '${prefix}-ng-spokes-development'
+var spokesNetworkGroupTestName = '${prefix}-ng-spokes-test'
+var spokesNetworkGroupProdName = '${prefix}-ng-spokes-production'
 
-
+var subscriptionResourceIds = [for subId in union([hubSubscriptionId], managedScopeType == 'Subscription' ? managedScopeIds : []): '/subscriptions/${subId}']
+var managementGroupResourceIds = [for mgId in (managedScopeType == 'ManagementGroup' ? managedScopeIds : []): '/providers/Microsoft.Management/managementGroups/${mgId}']
 
 // === RESOURCES ===
 
-
 @description('1. Deploy the Azure Virtual Network Manager instance.')
-resource avnm 'Microsoft.Network/networkManagers@2024-10-01' = {
+resource avnm 'Microsoft.Network/networkManagers@2024-05-01' = {
   name: avnmName
   location: location
   properties: {
     description: 'Central AVNM for enterprise connectivity and security.'
-    networkManagerScopeAccesses: [
-      'Connectivity'
-      'SecurityAdmin'
-      'Routing'
-    ]
+    networkManagerScopeAccesses: [ 'Connectivity', 'SecurityAdmin', 'Routing' ]
     networkManagerScopes: {
-      subscriptions: managedScopeType == 'Subscription' ? [hubSubscriptionResourceId, managedSubscriptionResourceId] : [hubSubscriptionResourceId]
-      managementGroups: managedScopeType == 'ManagementGroup' ? [managedManagementGroupResourceId] : []
+      subscriptions: subscriptionResourceIds
+      managementGroups: managementGroupResourceIds
     }
   }
 }
 
-@description('2. Deploy the IPAM Pool as a child of the AVNM (conditionally).')
-resource ipamPool 'Microsoft.Network/networkManagers/ipamPools@2024-10-01' = if (manageIpamPool) {
+@description('2. Deploy the IPAM Pool as a child of the AVNM.')
+resource ipamPool 'Microsoft.Network/networkManagers/ipamPools@2024-05-01' = {
   parent: avnm
   name: ipamPoolName
   location: location
@@ -78,14 +68,8 @@ resource ipamPool 'Microsoft.Network/networkManagers/ipamPools@2024-10-01' = if 
   }
 }
 
-@description('Reference the IPAM pool if it already exists (no changes made).')
-resource ipamPoolExisting 'Microsoft.Network/networkManagers/ipamPools@2024-10-01' existing = {
-  parent: avnm
-  name: ipamPoolName
-}
-
 @description('4. Create the Network Group for the Hub VNet (Static Membership).')
-resource hubNetworkGroup 'Microsoft.Network/networkManagers/networkGroups@2024-10-01' = {
+resource hubNetworkGroup 'Microsoft.Network/networkManagers/networkGroups@2024-05-01' = {
   parent: avnm
   name: hubNetworkGroupName
   properties: {
@@ -93,30 +77,28 @@ resource hubNetworkGroup 'Microsoft.Network/networkManagers/networkGroups@2024-1
   }
 }
 
-// 4a. Static hub member moved to main.bicep to ensure ordering when hub VNet is created conditionally
-
 @description('5a. Create the Network Group for Dev Spokes')
-resource spokesNetworkGroupDev 'Microsoft.Network/networkManagers/networkGroups@2024-10-01' = {
+resource spokesNetworkGroupDev 'Microsoft.Network/networkManagers/networkGroups@2024-05-01' = {
   parent: avnm
-  name: '${prefix}-ng-spokes-development'
+  name: spokesNetworkGroupDevName
   properties: {
     description: 'Dynamic group for Development spokes.'
   }
 }
 
 @description('5b. Create the Network Group for Test Spokes')
-resource spokesNetworkGroupTest 'Microsoft.Network/networkManagers/networkGroups@2024-10-01' = {
+resource spokesNetworkGroupTest 'Microsoft.Network/networkManagers/networkGroups@2024-05-01' = {
   parent: avnm
-  name: '${prefix}-ng-spokes-test'
+  name: spokesNetworkGroupTestName
   properties: {
     description: 'Dynamic group for Test spokes.'
   }
 }
 
 @description('5c. Create the Network Group for Prod Spokes')
-resource spokesNetworkGroupProd 'Microsoft.Network/networkManagers/networkGroups@2024-10-01' = {
+resource spokesNetworkGroupProd 'Microsoft.Network/networkManagers/networkGroups@2024-05-01' = {
   parent: avnm
-  name: '${prefix}-ng-spokes-production'
+  name: spokesNetworkGroupProdName
   properties: {
     description: 'Dynamic group for Production spokes.'
   }
@@ -125,9 +107,8 @@ resource spokesNetworkGroupProd 'Microsoft.Network/networkManagers/networkGroups
 // === OUTPUTS ===
 output avnmId string = avnm.id
 output avnmName string = avnm.name
-output ipamPoolId string = manageIpamPool ? ipamPool.id : ipamPoolExisting.id
+output ipamPoolId string = ipamPool.id
 output hubNetworkGroupId string = hubNetworkGroup.id
-// Static member created in main.bicep; no output here
 output spokesNetworkGroupDevId string = spokesNetworkGroupDev.id
 output spokesNetworkGroupTestId string = spokesNetworkGroupTest.id
 output spokesNetworkGroupProdId string = spokesNetworkGroupProd.id
